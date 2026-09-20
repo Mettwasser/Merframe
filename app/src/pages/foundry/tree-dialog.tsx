@@ -211,7 +211,10 @@ export function FoundryTreeDialog({
   item,
   onClose,
 }: {
-  item: FoundryItem | null;
+  item: Pick<
+    FoundryItem,
+    "unique_name" | "name" | "image_name" | "wiki_url" | "favourite"
+  > | null;
   onClose: () => void;
 }) {
   const [details, setDetails] = useState<CraftDetails | null>(null);

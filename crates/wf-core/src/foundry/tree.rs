@@ -76,8 +76,7 @@ fn shopping_list(tree: &[CraftNode]) -> (Vec<NeededItem>, Vec<NeededItem>) {
     let mut blueprints: Vec<NeededItem> = Vec::new();
     let mut resources: Vec<NeededItem> = Vec::new();
     for needed in totals.into_values().filter(|needed| needed.amount > 0) {
-        if needed.unique_name.contains("Blueprint") || needed.unique_name.starts_with(RECIPE_PREFIX)
-        {
+        if is_blueprint(&needed.unique_name) {
             blueprints.push(needed);
         } else {
             resources.push(needed);
@@ -86,6 +85,10 @@ fn shopping_list(tree: &[CraftNode]) -> (Vec<NeededItem>, Vec<NeededItem>) {
     blueprints.sort_by(|a, b| a.name.cmp(&b.name));
     resources.sort_by(|a, b| a.name.cmp(&b.name));
     (blueprints, resources)
+}
+
+pub(crate) fn is_blueprint(unique_name: &str) -> bool {
+    unique_name.contains("Blueprint") || unique_name.starts_with(RECIPE_PREFIX)
 }
 
 fn gather_leaves<'a>(node: &'a CraftNode, totals: &mut BTreeMap<&'a str, NeededItem>) {

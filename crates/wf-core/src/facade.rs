@@ -22,7 +22,7 @@ use crate::listings::MarketListings;
 use crate::mastery::{self, MasteryOptions, MasteryTab};
 use crate::prices::PriceSource;
 use crate::relic_planner::{self, MissingPart, RelicPlan, RelicSource, RewardScreen};
-use crate::resources::{self, ResourcesTab};
+use crate::resources::{self, ResourceScope, ResourceSource, ResourcesTab};
 use crate::rivens::{Grader, RivenRow, RivensTab};
 use crate::stats::{self, DailyCount, StatsSummary};
 use crate::store::{
@@ -281,9 +281,20 @@ impl Core {
         Some(mastery::tab(&self.view()?, options))
     }
 
-    pub fn resources_tab(&self) -> Option<ResourcesTab> {
-        let inventory = self.inventory.as_ref()?;
-        Some(resources::tab(inventory, &self.catalog))
+    pub fn resources_tab(
+        &self,
+        source: ResourceSource,
+        scope: ResourceScope,
+        include_founders: Option<bool>,
+        now: DateTime<Utc>,
+    ) -> Option<ResourcesTab> {
+        Some(resources::tab(
+            &self.view()?,
+            source,
+            scope,
+            include_founders,
+            now,
+        ))
     }
 
     pub fn relic_planner_tab(&self, squad_size: u32, only_owned: bool) -> Option<RelicPlannerTab> {
@@ -636,7 +647,15 @@ mod tests {
             core.mastery_tab(MasteryOptions::default()).unwrap().rank,
             14
         );
-        assert!(core.resources_tab().is_some());
+        assert!(
+            core.resources_tab(
+                ResourceSource::Held,
+                ResourceScope::Mastery,
+                None,
+                Utc::now()
+            )
+            .is_some()
+        );
         let planner = core
             .relic_planner_tab(relic_planner::DEFAULT_SQUAD_SIZE, true)
             .unwrap();

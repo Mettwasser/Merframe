@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use tauri::{AppHandle, Runtime};
 use wf_core::{
     ComparedStat, CraftDetails, FoundryTab, InventoryTab, MasteryOptions, MasteryOrdering,
-    MasteryTab, RelicPlannerTab, RelicSource, ResourcesTab, RewardScreen, RivenComparables,
-    RivensTab, StatsTab, TimeRange,
+    MasteryTab, RelicPlannerTab, RelicSource, ResourceScope, ResourceSource, ResourcesTab,
+    RewardScreen, RivenComparables, RivensTab, StatsTab, TimeRange,
 };
 
 use super::{Shared, compute, ready};
@@ -53,9 +53,19 @@ pub async fn mastery_tab(
 }
 
 #[tauri::command]
-pub async fn resources_tab(state: Shared<'_>) -> CommandResult<ResourcesTab> {
+pub async fn resources_tab(
+    state: Shared<'_>,
+    source: ResourceSource,
+    scope: ResourceScope,
+) -> CommandResult<ResourcesTab> {
     let state = ready(&state)?;
-    compute(state, wf_core::Core::resources_tab).await
+    let include_founders = read(&state.settings)
+        .mastery_options(MasteryOrdering::default())
+        .include_founders_items;
+    compute(state, move |core| {
+        core.resources_tab(source, scope, include_founders, Utc::now())
+    })
+    .await
 }
 
 #[tauri::command]

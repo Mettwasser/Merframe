@@ -48,6 +48,7 @@ export type GameIconName =
   | "polarity-umbra"
   | "polarity-any"
   | "platinum"
+  | "credits"
   | "ducats";
 
 export type ArcaneRarity = "Common" | "Uncommon" | "Rare" | "Legendary";

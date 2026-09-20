@@ -1,0 +1,219 @@
+import { LoaderCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FilterGrid } from "@/components/filter-grid";
+import { FilterSingleSelect } from "@/components/filter-select";
+import { GameIcon } from "@/components/game-icon";
+import { prefetchImages } from "@/components/item-image";
+import {
+  CardGrid,
+  EmptyPanel,
+  ErrorNote,
+  Page,
+  Quoted,
+  Section,
+  Stat,
+  TableSkeleton,
+} from "@/components/page";
+import { SearchInput } from "@/components/search-input";
+import { useAsyncData } from "@/hooks/use-async-data";
+import { useListen } from "@/hooks/use-listen";
+import { api, events } from "@/lib/bridge";
+import { num } from "@/lib/format";
+import { usePageQuote } from "@/lib/quotes";
+import { type ShowFilter, visibleResources } from "@/lib/resource-filters";
+import { cn } from "@/lib/utils";
+import { FoundryTreeDialog } from "@/pages/foundry/tree-dialog";
+import { usePreferencesStore } from "@/stores/preferences-store";
+import type { ResourceScope, ResourceSource } from "@/types";
+import { NeededBy } from "./needed-by";
+import { ResourceCard } from "./resource-card";
+
+const SOURCES: readonly { value: ResourceSource; label: string }[] = [
+  { value: "held", label: "With a held blueprint" },
+  { value: "craftable", label: "All craftable" },
+];
+
+const SCOPES: readonly { value: ResourceScope; label: string }[] = [
+  { value: "mastery", label: "Missing for mastery" },
+  { value: "all", label: "All items" },
+  { value: "starred", label: "Starred" },
+];
+
+const SHOWN: readonly { value: ShowFilter; label: string }[] = [
+  { value: "all", label: "All resources" },
+  { value: "short", label: "Only shortfalls" },
+];
+
+const NO_DEMAND: Record<ResourceSource, Record<ResourceScope, string>> = {
+  held: {
+    mastery:
+      "No blueprint in the inventory belongs to an item that is neither owned nor mastered.",
+    all: "The inventory holds no blueprint with a resource cost.",
+    starred: "No blueprint in the inventory is starred.",
+  },
+  craftable: {
+    mastery: "Every craftable item is already owned or mastered.",
+    all: "No craftable item has a resource cost.",
+    starred: "No craftable item is starred.",
+  },
+};
+
+export function ResourcesPage() {
+  const quote = usePageQuote("resources");
+  const {
+    resourceSource: source,
+    resourceScope: scope,
+    setResourceSource,
+    setResourceScope,
+  } = usePreferencesStore();
+  const [show, setShow] = useState<ShowFilter>("all");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [opened, setOpened] = useState<string | null>(null);
+
+  const load = useCallback(
+    () => api.resourcesTab(source, scope),
+    [source, scope],
+  );
+  const { data, error, loading, reload } = useAsyncData(load);
+
+  useListen(events.inventoryUpdated, reload);
+  useListen(events.appReady, reload);
+
+  const resources = useMemo(
+    () => visibleResources(data?.resources ?? [], show, query),
+    [data?.resources, show, query],
+  );
+
+  const selectedRow = useMemo(
+    () =>
+      resources.find((row) => row.unique_name === selected) ??
+      resources[0] ??
+      null,
+    [resources, selected],
+  );
+
+  const openedItem = useMemo(
+    () =>
+      data?.resources
+        .flatMap((row) => row.used_by)
+        .find((use) => use.unique_name === opened) ?? null,
+    [data?.resources, opened],
+  );
+  const handleCloseTree = useCallback(() => setOpened(null), []);
+
+  useEffect(() => {
+    prefetchImages([
+      ...resources.map((row) => row.image_name),
+      ...(selectedRow?.used_by.map((use) => use.image_name) ?? []),
+    ]);
+  }, [resources, selectedRow]);
+
+  if (loading && !data) {
+    return (
+      <Page title="Resources" description={<Quoted quote={quote} />}>
+        <TableSkeleton />
+      </Page>
+    );
+  }
+
+  const short = data?.resources.filter((row) => row.deficit > 0).length ?? 0;
+
+  return (
+    <Page title="Resources" description={<Quoted quote={quote} />}>
+      {error && <ErrorNote message={error} />}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Stat label="Short resources" value={num(short)} />
+        <Stat label="Items to build" value={num(data?.items)} />
+        <Stat
+          label="Credits needed"
+          value={
+            <span className="flex items-center gap-1.5">
+              <GameIcon name="credits" size={20} alt="" />
+              {num(data?.credits)}
+            </span>
+          }
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Section
+          title="Stockpile"
+          className={selectedRow ? "lg:col-span-2" : "lg:col-span-3"}
+          action={
+            <div className="flex items-center gap-3">
+              {loading && (
+                <LoaderCircle
+                  role="status"
+                  aria-label="Loading"
+                  className="text-muted-foreground size-4 animate-spin"
+                />
+              )}
+              <span className="text-muted-foreground text-sm">
+                {num(resources.length)} of {num(data?.resources.length)}{" "}
+                resources
+              </span>
+              <SearchInput
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search"
+              />
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            <FilterGrid className="border-0 p-0">
+              <FilterSingleSelect
+                label="Items"
+                value={source}
+                options={SOURCES}
+                onChange={setResourceSource}
+              />
+              <FilterSingleSelect
+                label="Demand from"
+                value={scope}
+                options={SCOPES}
+                onChange={setResourceScope}
+              />
+              <FilterSingleSelect
+                label="Show"
+                value={show}
+                options={SHOWN}
+                onChange={setShow}
+              />
+            </FilterGrid>
+
+            {resources.length === 0 ? (
+              <EmptyPanel>
+                {data?.resources.length === 0
+                  ? NO_DEMAND[source][scope]
+                  : "Nothing matches these filters."}
+              </EmptyPanel>
+            ) : (
+              <CardGrid
+                className={cn(
+                  "transition-opacity xl:grid-cols-2 2xl:grid-cols-3",
+                  loading && "opacity-60",
+                )}
+              >
+                {resources.map((row) => (
+                  <ResourceCard
+                    key={row.unique_name}
+                    row={row}
+                    selected={row === selectedRow}
+                    onSelect={setSelected}
+                  />
+                ))}
+              </CardGrid>
+            )}
+          </div>
+        </Section>
+
+        {selectedRow && <NeededBy row={selectedRow} onOpen={setOpened} />}
+      </div>
+
+      <FoundryTreeDialog item={openedItem} onClose={handleCloseTree} />
+    </Page>
+  );
+}

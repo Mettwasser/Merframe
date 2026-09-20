@@ -137,6 +137,19 @@ export interface InventoryTab {
   totals: Record<string, TabTotals>;
 }
 
+export type ResourceSource = "held" | "craftable";
+export type ResourceScope = "mastery" | "all" | "starred";
+
+export interface ResourceUse {
+  unique_name: string;
+  name: string;
+  image_name: string | null;
+  wiki_url: string | null;
+  amount: number;
+  favourite: boolean;
+  ready_to_build: boolean;
+}
+
 export interface ResourceRow {
   unique_name: string;
   name: string;
@@ -144,15 +157,11 @@ export interface ResourceRow {
   owned: number;
   required: number;
   deficit: number;
-}
-
-export interface RecipeDemand {
-  recipe: string;
-  name: string;
-  count: number;
+  used_by: ResourceUse[];
 }
 
 export interface ResourcesTab {
   resources: ResourceRow[];
-  recipes: RecipeDemand[];
+  items: number;
+  credits: number;
 }

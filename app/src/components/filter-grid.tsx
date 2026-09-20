@@ -1,18 +1,26 @@
 import { FilterX } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function FilterGrid({
   activeFilters = 0,
   onClear,
+  className,
   children,
 }: {
   activeFilters?: number;
   onClear?: () => void;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border p-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border p-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+        className,
+      )}
+    >
       {children}
       {onClear && activeFilters > 0 && (
         <div className="flex items-end">

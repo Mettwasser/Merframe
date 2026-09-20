@@ -6,7 +6,6 @@ import { api, events } from "@/lib/bridge";
 const loaders = {
   inventory: api.inventoryTab,
   foundry: api.foundryTab,
-  resources: api.resourcesTab,
   rivens: api.rivensTab,
   stats: api.statsTab,
   worldstate: api.worldstate,

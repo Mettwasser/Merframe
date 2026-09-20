@@ -2,7 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Category } from "@/lib/foundry-filters";
 import { ANY_REFINEMENT } from "@/lib/relic-filters";
-import type { FissurePath, Timeframe } from "@/types";
+import type {
+  FissurePath,
+  ResourceScope,
+  ResourceSource,
+  Timeframe,
+} from "@/types";
 
 interface PreferencesState {
   squadSize: number;
@@ -11,6 +16,8 @@ interface PreferencesState {
   fissurePath: FissurePath;
   timeframe: Timeframe;
   foundryCategory: Category;
+  resourceSource: ResourceSource;
+  resourceScope: ResourceScope;
   hiddenColumns: Record<string, string[]>;
   setSquadSize: (squadSize: number) => void;
   setRefinement: (refinement: string) => void;
@@ -18,6 +25,8 @@ interface PreferencesState {
   setFissurePath: (fissurePath: FissurePath) => void;
   setTimeframe: (timeframe: Timeframe) => void;
   setFoundryCategory: (foundryCategory: Category) => void;
+  setResourceSource: (resourceSource: ResourceSource) => void;
+  setResourceScope: (resourceScope: ResourceScope) => void;
   setHiddenColumns: (tableId: string, columns: string[]) => void;
 }
 
@@ -52,6 +61,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         "merframe.foundry.category",
         "warframe",
       ),
+      resourceSource: "held",
+      resourceScope: "mastery",
       hiddenColumns: legacyHiddenColumns(),
       setSquadSize: (squadSize) => set({ squadSize }),
       setRefinement: (refinement) => set({ refinement }),
@@ -59,6 +70,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       setFissurePath: (fissurePath) => set({ fissurePath }),
       setTimeframe: (timeframe) => set({ timeframe }),
       setFoundryCategory: (foundryCategory) => set({ foundryCategory }),
+      setResourceSource: (resourceSource) => set({ resourceSource }),
+      setResourceScope: (resourceScope) => set({ resourceScope }),
       setHiddenColumns: (tableId, columns) =>
         set((state) => ({
           hiddenColumns: { ...state.hiddenColumns, [tableId]: columns },
@@ -73,6 +86,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         fissurePath: state.fissurePath,
         timeframe: state.timeframe,
         foundryCategory: state.foundryCategory,
+        resourceSource: state.resourceSource,
+        resourceScope: state.resourceScope,
         hiddenColumns: state.hiddenColumns,
       }),
     },

@@ -16,7 +16,7 @@ import { MarketPage } from "@/pages/market/market";
 import { MasteryPage } from "@/pages/mastery";
 import { OverlaysPage } from "@/pages/overlays";
 import { RelicPlannerPage } from "@/pages/relic-planner/relic-planner";
-import { ResourcesPage } from "@/pages/resources";
+import { ResourcesPage } from "@/pages/resources/resources";
 import { RivensPage } from "@/pages/rivens/rivens";
 import { SettingsPage } from "@/pages/settings/settings";
 import { StatsPage } from "@/pages/stats";

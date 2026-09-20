@@ -109,10 +109,6 @@ impl Catalog {
     }
 }
 
-pub(crate) fn owned_count(inventory: &wf_inventory::Inventory, unique_name: &str) -> i64 {
-    resolve_count(unique_name, |item_type| inventory.counted(item_type))
-}
-
 pub(crate) struct Stock<'a> {
     counts: HashMap<&'a str, i64>,
 }
@@ -207,12 +203,6 @@ pub(crate) fn vault_status(name: &str, vaulted: Option<bool>) -> Option<VaultSta
 
 pub(crate) fn is_part(component: &Component) -> bool {
     component.unique_name.starts_with(RECIPE_PREFIX)
-}
-
-pub(crate) fn is_resource(component: &Component) -> bool {
-    component
-        .unique_name
-        .starts_with("/Lotus/Types/Items/MiscItems/")
 }
 
 pub(crate) fn part_market_slug(item: &Item, component: &Component) -> String {
@@ -483,7 +473,7 @@ mod tests {
         ] {
             assert_eq!(
                 stock.count(unique_name),
-                owned_count(&inventory, unique_name),
+                resolve_count(unique_name, |item_type| inventory.counted(item_type)),
                 "{unique_name}"
             );
         }
@@ -520,7 +510,6 @@ mod tests {
         assert_eq!(inventory.counted(FORMA_ITEM), 65);
         assert_eq!(inventory.counted(FORMA_BLUEPRINT), 25);
         assert_eq!(stock.count(FORMA_BLUEPRINT), 90);
-        assert_eq!(owned_count(&inventory, FORMA_BLUEPRINT), 90);
         assert_eq!(stock.count(FORMA_ITEM), 65);
         assert_eq!(
             stock.count("/Lotus/Types/Recipes/Components/FormaAuraBlueprint"),

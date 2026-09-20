@@ -8,8 +8,8 @@ mod stock;
 mod tab;
 mod tree;
 
-pub(crate) use tab::tab;
-pub(crate) use tree::details;
+pub(crate) use tab::{items, tab};
+pub(crate) use tree::{details, is_blueprint};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PendingBuild {

@@ -48,7 +48,7 @@ pub use relic_planner::{
     OwnedRefinement, Ownership, PerTrace, Ranked, RankedComponent, RefinementValue, RelicMarket,
     RelicPlan, RelicSource, RewardBreakdown, RewardOwnership, RewardScreen,
 };
-pub use resources::{RecipeDemand, ResourceRow, ResourcesTab};
+pub use resources::{ResourceRow, ResourceScope, ResourceSource, ResourceUse, ResourcesTab};
 pub use rivens::{
     AlternativeMatch, AttributeGrade, GoodRollView, KeptRoll, ListingChoices, PendingRoll,
     RivenRow, RivensTab, StatMatch, VeiledGroup, VeiledRiven, display_name as riven_display_name,
