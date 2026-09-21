@@ -11,6 +11,8 @@ const MARGIN: f64 = 20.0;
 const DEFAULT_SCREEN: Screen = Screen {
     width: 1920.0,
     height: 1080.0,
+    x: 0.0,
+    y: 0.0,
     scale: 1.0,
 };
 
@@ -18,6 +20,14 @@ const DEFAULT_SCREEN: Screen = Screen {
 pub(super) struct Screen {
     pub(super) width: f64,
     pub(super) height: f64,
+    /// Global desktop X origin of this monitor in physical pixels.
+    ///
+    /// X11/XWayland windows are placed in the combined virtual desktop, so the
+    /// monitor-local position computed by [`bounds_for`] must be offset by this
+    /// value before it is handed to GTK/Tauri.
+    pub(super) x: f64,
+    /// Global desktop Y origin of this monitor in physical pixels.
+    pub(super) y: f64,
     pub(super) scale: f64,
 }
 
@@ -38,6 +48,12 @@ pub(super) fn logical(bounds: Bounds, scale: f64) -> Bounds {
     }
 }
 
+/// Computes the window rectangle for `kind` in physical pixels.
+///
+/// The returned `x`/`y` are in the combined global desktop coordinate space:
+/// the monitor-local position is translated by [`Screen::x`]/[`Screen::y`].
+/// X11/XWayland windows are placed in that global space, so this translation
+/// is required for overlays on any monitor that is not at the desktop origin.
 pub(super) fn bounds_for(
     kind: Kind,
     placement: OverlayPlacement,
@@ -74,8 +90,10 @@ pub(super) fn bounds_for(
     Bounds {
         width,
         height,
-        x,
-        y,
+        // `x`/`y` are relative to the target monitor. X11/XWayland windows live
+        // in the combined virtual desktop, so translate to global coordinates.
+        x: x + screen.x,
+        y: y + screen.y,
     }
 }
 
@@ -120,9 +138,12 @@ pub(super) fn screen_of<R: Runtime>(app: &AppHandle<R>) -> Screen {
         return DEFAULT_SCREEN;
     };
     let size = monitor.size();
+    let position = monitor.position();
     Screen {
         width: f64::from(size.width),
         height: f64::from(size.height),
+        x: f64::from(position.x),
+        y: f64::from(position.y),
         scale: monitor.scale_factor(),
     }
 }
@@ -208,6 +229,8 @@ mod tests {
     const FULL_HD: Screen = Screen {
         width: 1920.0,
         height: 1080.0,
+        x: 0.0,
+        y: 0.0,
         scale: 1.0,
     };
 
@@ -258,6 +281,8 @@ mod tests {
         let compositor_upscales_xwayland = Screen {
             width: 2560.0,
             height: 1440.0,
+            x: 0.0,
+            y: 0.0,
             scale: 1.0,
         };
         let physical = bounds_for(
@@ -280,6 +305,8 @@ mod tests {
         let xwayland_carries_the_scaling_factor = Screen {
             width: 3840.0,
             height: 2160.0,
+            x: 0.0,
+            y: 0.0,
             scale: 2.0,
         };
         let physical = bounds_for(
@@ -333,6 +360,8 @@ mod tests {
             Screen {
                 width: 2560.0,
                 height: 1440.0,
+                x: 0.0,
+                y: 0.0,
                 scale: 1.0,
             },
         );
@@ -392,6 +421,8 @@ mod tests {
                 Screen {
                     width: 1280.0,
                     height: 800.0,
+                    x: 0.0,
+                    y: 0.0,
                     scale: 1.0,
                 }
             )
@@ -459,6 +490,8 @@ mod tests {
         let screen = Screen {
             width: 2560.0,
             height: 1440.0,
+            x: 0.0,
+            y: 0.0,
             scale: 1.0,
         };
         assert_eq!(
@@ -489,5 +522,62 @@ mod tests {
                 y: 20.0,
             }
         );
+    }
+
+    #[test]
+    fn monitor_global_offsets() {
+        // 2560x1440 monitor, 700x1200 Riven overlay, 20px margin. The X11/XWayland
+        // window must land in the combined virtual desktop, so the monitor-local
+        // position is offset by the monitor's global origin.
+        //
+        // This was a real scenario, now covered by this test.
+        let at = |x: f64, y: f64| Screen {
+            width: 2560.0,
+            height: 1440.0,
+            x,
+            y,
+            scale: 1.0,
+        };
+        let riven = |screen, placement| {
+            let bounds = bounds_for(Kind::Riven, placement, RECOMMENDATION_COUNT_DEFAULT, screen);
+            assert_eq!((bounds.width, bounds.height), (700.0, 1200.0));
+            (bounds.x, bounds.y)
+        };
+
+        // (monitor origin) -> top-left, bottom-right
+        let cases = [
+            ((0.0, 0.0), (20.0, 20.0), (1840.0, 220.0)),
+            ((1920.0, 0.0), (1940.0, 20.0), (3760.0, 220.0)),
+            ((-1920.0, 0.0), (-1900.0, 20.0), (-80.0, 220.0)),
+            ((1920.0, 360.0), (1940.0, 380.0), (3760.0, 580.0)),
+            ((0.0, -1080.0), (20.0, -1060.0), (1840.0, -860.0)),
+        ];
+        for ((mx, my), top_left, bottom_right) in cases {
+            let screen = at(mx, my);
+            assert_eq!(riven(screen, OverlayPlacement::TopLeft), top_left);
+            assert_eq!(riven(screen, OverlayPlacement::BottomRight), bottom_right);
+        }
+    }
+
+    #[test]
+    fn monitor_offset_survives_logical_conversion() {
+        // A physical global offset is divided by the monitor scale factor along
+        // with the rest of the bounds before Tauri receives a LogicalPosition.
+        let screen = Screen {
+            width: 2560.0,
+            height: 1440.0,
+            x: 1920.0,
+            y: 360.0,
+            scale: 2.0,
+        };
+        let physical = bounds_for(
+            Kind::Riven,
+            OverlayPlacement::TopLeft,
+            RECOMMENDATION_COUNT_DEFAULT,
+            screen,
+        );
+        assert_eq!((physical.x, physical.y), (1940.0, 380.0));
+        let window = super::logical(physical, screen.scale);
+        assert_eq!((window.x, window.y), (970.0, 190.0));
     }
 }
