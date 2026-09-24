@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 pub fn store_item_to_type(path: &str) -> String {
@@ -44,8 +46,6 @@ pub struct Component {
     #[serde(rename = "uniqueName")]
     pub unique_name: String,
     pub name: String,
-    #[serde(rename = "itemCount")]
-    pub item_count: u32,
     pub tradable: bool,
     pub ducats: Option<u32>,
     pub drops: Option<Vec<Drop>>,
@@ -55,6 +55,123 @@ pub struct Component {
     pub build_price: Option<u32>,
     #[serde(rename = "buildTime")]
     pub build_time: Option<u32>,
+
+    /// This field will be manually mapped
+    #[serde(default)]
+    pub item_count: u32,
+}
+
+/// A component that is a reference into the components json
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentRef {
+    #[serde(rename = "uniqueName")]
+    pub unique_name: String,
+    pub item_count: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentMap {
+    map: HashMap<String, Component>,
+}
+
+impl ComponentMap {
+    pub fn from_component_vec(components: Vec<Component>) -> Self {
+        Self {
+            map: components
+                .into_iter()
+                .map(|component| (component.unique_name.clone(), component))
+                .collect(),
+        }
+    }
+
+    pub fn get(&self, key: &str) -> Option<&Component> {
+        self.map.get(key)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemRef {
+    #[serde(rename = "uniqueName")]
+    pub unique_name: String,
+    pub name: String,
+    pub category: String,
+    #[serde(rename = "type")]
+    pub item_type: String,
+    pub tradable: bool,
+    #[serde(rename = "masteryReq")]
+    pub mastery_req: Option<u32>,
+    #[serde(rename = "productCategory")]
+    pub product_category: Option<String>,
+    pub components: Option<Vec<ComponentRef>>,
+    #[serde(rename = "warframeMarket")]
+    pub warframe_market: Option<MarketSlug>,
+    #[serde(rename = "imageName")]
+    pub image_name: Option<String>,
+    #[serde(rename = "wikiaUrl")]
+    pub wikia_url: Option<String>,
+    pub masterable: Option<bool>,
+    pub rarity: Option<Rarity>,
+    #[serde(rename = "maxLevelCap")]
+    pub max_level_cap: Option<u32>,
+    pub vaulted: Option<bool>,
+    #[serde(rename = "buildQuantity")]
+    pub build_quantity: Option<u32>,
+    #[serde(rename = "buildPrice")]
+    pub build_price: Option<u32>,
+    #[serde(rename = "bpCost")]
+    pub blueprint_cost: Option<u32>,
+    #[serde(rename = "buildTime")]
+    pub build_time: Option<u32>,
+    pub tags: Option<Vec<String>>,
+    pub attacks: Option<Vec<Attack>>,
+    #[serde(rename = "omegaAttenuation")]
+    pub omega_attenuation: Option<f64>,
+    #[serde(rename = "upgradeEntries")]
+    pub upgrade_entries: Option<Vec<crate::riven::UpgradeEntry>>,
+    #[serde(rename = "fusionLimit")]
+    pub fusion_limit: Option<u32>,
+    #[serde(rename = "levelStats")]
+    pub level_stats: Option<Vec<LevelStat>>,
+}
+
+impl ItemRef {
+    pub fn resolve(self, component_map: &ComponentMap) -> Option<Item> {
+        Some(Item {
+            unique_name: self.unique_name,
+            name: self.name,
+            category: self.category,
+            item_type: self.item_type,
+            tradable: self.tradable,
+            mastery_req: self.mastery_req,
+            product_category: self.product_category,
+            components: self.components.map(|v| {
+                v.into_iter()
+                    .map(|component_ref| {
+                        let mut component = component_map.get(&component_ref.unique_name)?.clone();
+                        component.item_count = component_ref.item_count.unwrap_or(0);
+                        Some(component)
+                    })
+                    .collect::<Option<Vec<_>>>()
+            })?,
+            warframe_market: self.warframe_market,
+            image_name: self.image_name,
+            wikia_url: self.wikia_url,
+            masterable: self.masterable,
+            rarity: self.rarity,
+            max_level_cap: self.max_level_cap,
+            vaulted: self.vaulted,
+            build_quantity: self.build_quantity,
+            build_price: self.build_price,
+            blueprint_cost: self.blueprint_cost,
+            build_time: self.build_time,
+            tags: self.tags,
+            attacks: self.attacks,
+            omega_attenuation: self.omega_attenuation,
+            upgrade_entries: self.upgrade_entries,
+            fusion_limit: self.fusion_limit,
+            level_stats: self.level_stats,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

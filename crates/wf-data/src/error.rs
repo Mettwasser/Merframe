@@ -1,5 +1,11 @@
 pub type Result<T> = std::result::Result<T, DataError>;
 
+#[derive(thiserror::Error, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MappingErrorKind {
+    #[error("not found")]
+    NotFound,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum DataError {
     #[error("{0} json: {1}")]
@@ -20,4 +26,9 @@ pub enum DataError {
     #[cfg(feature = "fetch")]
     #[error("No cached copy of {0} and the download failed")]
     NoCacheAvailable(String),
+    #[error("failed to map data for {item_unique_name}: {kind}")]
+    Mapping {
+        item_unique_name: String,
+        kind: MappingErrorKind,
+    },
 }

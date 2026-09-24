@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::error::{DataError, Result};
-use crate::item::{Component, Item, Rarity};
+use crate::error::{DataError, MappingErrorKind, Result};
+use crate::item::{Component, ComponentMap, Item, ItemRef, Rarity};
 use crate::relic::{Refinement, Relic, parse_relics};
 use crate::riven::RivenData;
 
@@ -14,28 +14,54 @@ pub struct GameData {
     relic_name_index: HashMap<String, usize>,
     relic_unique_name_index: HashMap<String, (usize, Refinement)>,
     riven_data: RivenData,
+    pub component_map: ComponentMap,
 }
 
 impl GameData {
-    pub fn from_json(items: &str, relics: &str) -> Result<Self> {
+    pub fn from_json(items: &str, relics: &str, components: &str) -> Result<Self> {
         Self::build(
             serde_json::from_str(items).map_err(|source| DataError::Parse("item", source))?,
             relics,
+            ComponentMap::from_component_vec(
+                serde_json::from_str(components)
+                    .map_err(|source| DataError::Parse("components", source))?,
+            ),
         )
     }
 
-    pub fn from_json_parts(items: &[String], relics: &str) -> Result<Self> {
-        let mut parsed = Vec::new();
+    pub fn from_json_parts(items: &[String], relics: &str, components: &str) -> Result<Self> {
+        let mut parsed: Vec<ItemRef> = Vec::new();
         for part in items {
             parsed.append(
                 &mut serde_json::from_str(part)
                     .map_err(|source| DataError::Parse("item", source))?,
             );
         }
-        Self::build(parsed, relics)
+
+        Self::build(
+            parsed,
+            relics,
+            ComponentMap::from_component_vec(
+                serde_json::from_str(components)
+                    .map_err(|source| DataError::Parse("components", source))?,
+            ),
+        )
     }
 
-    fn build(parsed: Vec<Item>, relics: &str) -> Result<Self> {
+    fn build(item_refs: Vec<ItemRef>, relics: &str, component_map: ComponentMap) -> Result<Self> {
+        let parsed = item_refs
+            .into_iter()
+            .map(|item_ref| {
+                let name = item_ref.unique_name.clone();
+                item_ref
+                    .resolve(&component_map)
+                    .ok_or_else(move || DataError::Mapping {
+                        item_unique_name: name,
+                        kind: MappingErrorKind::NotFound,
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
+
         let parsed: Vec<Item> = parsed
             .into_iter()
             .filter(|item| !item.is_alternate_suit_body())
@@ -111,6 +137,7 @@ impl GameData {
             relic_name_index,
             relic_unique_name_index,
             riven_data,
+            component_map,
         })
     }
 
@@ -187,20 +214,22 @@ mod tests {
     const ITEMS: &str = include_str!("../tests/fixtures/items.json");
     const SKINS: &str = include_str!("../tests/fixtures/skins.json");
     const RELICS: &str = include_str!("../tests/fixtures/relics.json");
+    const COMPONENTS: &str = include_str!("../tests/fixtures/components.json");
     const MASTERY_ITEMS: &str = include_str!("../../../fixtures/mastery_items.json");
     const MISC_ITEMS: &str = include_str!("../../../fixtures/misc_items.json");
 
     fn fixture() -> GameData {
-        GameData::from_json(ITEMS, RELICS).unwrap()
+        GameData::from_json(ITEMS, RELICS, COMPONENTS).unwrap()
     }
 
     fn fixture_with_skins() -> GameData {
-        GameData::from_json_parts(&[ITEMS.to_owned(), SKINS.to_owned()], RELICS).unwrap()
+        GameData::from_json_parts(&[ITEMS.to_owned(), SKINS.to_owned()], RELICS, COMPONENTS)
+            .unwrap()
     }
 
     #[test]
     fn doppelganger_grimoire_dropped() {
-        let data = GameData::from_json(MASTERY_ITEMS, RELICS).unwrap();
+        let data = GameData::from_json(MASTERY_ITEMS, RELICS, COMPONENTS).unwrap();
         let grimoire = data
             .by_unique_name("/Lotus/Weapons/Tenno/Grimoire/TnGrimoire")
             .unwrap();
@@ -220,7 +249,7 @@ mod tests {
 
     #[test]
     fn dual_warframe_single_suit() {
-        let data = GameData::from_json(MASTERY_ITEMS, RELICS).unwrap();
+        let data = GameData::from_json(MASTERY_ITEMS, RELICS, COMPONENTS).unwrap();
         let sirius = data
             .by_unique_name("/Lotus/Powersuits/SiriusOrion/SiriusSuit")
             .unwrap();
@@ -275,7 +304,7 @@ mod tests {
 
     #[test]
     fn catches_and_glyphs_by_unique_name_only() {
-        let data = GameData::from_json(MISC_ITEMS, RELICS).unwrap();
+        let data = GameData::from_json(MISC_ITEMS, RELICS, COMPONENTS).unwrap();
         let fish = data
             .by_unique_name("/Lotus/Types/Items/Fish/Eidolon/DayUncommonFishBItem")
             .unwrap();

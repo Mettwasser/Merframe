@@ -103,7 +103,7 @@ fn named_circuit(catalog: &Catalog, circuit: &Circuit) -> Circuit {
     }
 }
 
-fn baro_group_of(item: Option<&wf_data::Item>) -> &'static str {
+fn baro_group_of(item: Option<&wf_data::ItemRef>) -> &'static str {
     match item.map(|item| item.category.as_str()) {
         Some("Mods") => "Mods",
         Some(
