@@ -28,38 +28,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/WarframeRecipes/BansheePrimeBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": true,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/WarframeRecipes/BansheePrimeChassisComponent",
-    "name": "Chassis",
-    "itemCount": 1,
-    "tradable": true,
-    "imageName": "GenericWarframePrimeChassis.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/WarframeRecipes/BansheePrimeHelmetComponent",
-    "name": "Neuroptics",
-    "itemCount": 1,
-    "tradable": true,
-    "imageName": "GenericWarframePrimeHelmet.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/OrokinCell",
-    "name": "Orokin Cell",
-    "itemCount": 5,
-    "tradable": false,
-    "imageName": "ComponentCell.png"
+    "itemCount": 5
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/WarframeRecipes/BansheePrimeSystemsComponent",
-    "name": "Systems",
-    "itemCount": 1,
-    "tradable": true,
-    "imageName": "GenericWarframePrimeSystem.png"
+    "itemCount": 1
    }
   ],
   "imageName": "BansheePrime.png",
@@ -80,38 +65,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/AlloyPlate",
-    "name": "Alloy Plate",
-    "itemCount": 900,
-    "tradable": false,
-    "imageName": "AlloyPlate.png"
+    "itemCount": 900
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Weapons/StrunShotgunBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Morphic",
-    "name": "Morphics",
-    "itemCount": 6,
-    "tradable": false,
-    "imageName": "ComponentMorphic.png"
+    "itemCount": 6
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Plastids",
-    "name": "Plastids",
-    "itemCount": 900,
-    "tradable": false,
-    "imageName": "ComponentPlastids.png"
+    "itemCount": 900
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 750,
-    "tradable": false,
-    "imageName": "ComponentSalvage.png"
+    "itemCount": 750
    }
   ],
   "imageName": "Boar.png",
@@ -159,38 +129,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/AlloyPlate",
-    "name": "Alloy Plate",
-    "itemCount": 10000,
-    "tradable": false,
-    "imageName": "AlloyPlate.png"
+    "itemCount": 10000
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Components/ControlModuleResourceBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Ferrite",
-    "name": "Ferrite",
-    "itemCount": 10000,
-    "tradable": false,
-    "imageName": "ComponentFerrite.png"
+    "itemCount": 10000
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Nanospores",
-    "name": "Nano Spores",
-    "itemCount": 25000,
-    "tradable": false,
-    "imageName": "ComponentNanospores.png"
+    "itemCount": 25000
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 10000,
-    "tradable": false,
-    "imageName": "ComponentSalvage.png"
+    "itemCount": 10000
    }
   ],
   "imageName": "ControlModule.png",
@@ -217,40 +172,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Items/Research/ChemComponentBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/ControlModule",
-    "name": "Control Module",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "ControlModule.png",
-    "buildPrice": 15000,
-    "buildTime": 3600
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/Research/ChemFragment",
-    "name": "Detonite Ampule",
-    "itemCount": 10,
-    "tradable": false,
-    "imageName": "GrineerFragment.png"
+    "itemCount": 10
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Plastids",
-    "name": "Plastids",
-    "itemCount": 250,
-    "tradable": false,
-    "imageName": "ComponentPlastids.png"
+    "itemCount": 250
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 500,
-    "tradable": false,
-    "imageName": "ComponentSalvage.png"
+    "itemCount": 500
    }
   ],
   "imageName": "GrineerComponent.png",
@@ -270,35 +208,19 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/Weapons/DualKamasBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Weapons/Tenno/Melee/DualKamas/SingleKama",
-    "name": "Kama",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "Kama.png",
-    "buildPrice": 20000,
-    "buildTime": 43200
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Weapons/Tenno/Melee/DualKamas/SingleKama",
-    "name": "Kama",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "Kama.png",
-    "buildPrice": 20000,
-    "buildTime": 43200
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/OrokinCell",
-    "name": "Orokin Cell",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "ComponentCell.png"
+    "itemCount": 1
    }
   ],
   "imageName": "DualKamas.png",
@@ -317,26 +239,15 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/Lens/PowerLensOstronBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Eidolonium",
-    "name": "Breath Of The Eidolon",
-    "itemCount": 5,
-    "tradable": false,
-    "imageName": "Eidolonium.png"
+    "itemCount": 5
    },
    {
     "uniqueName": "/Lotus/Upgrades/Focus/PowerLensGreater",
-    "name": "Greater Zenurik Lens",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "FocusLens2Rank.png",
-    "buildPrice": 25000,
-    "buildTime": 86400
+    "itemCount": 1
    }
   ],
   "imageName": "FocusLens3Rank.png",
@@ -363,38 +274,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/Components/FormaBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Morphic",
-    "name": "Morphics",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "ComponentMorphic.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/NeuralSensor",
-    "name": "Neural Sensors",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "NeuralSensor.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Neurode",
-    "name": "Neurodes",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "ComponentNeurode.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/OrokinCell",
-    "name": "Orokin Cell",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "ComponentCell.png"
+    "itemCount": 1
    }
   ],
   "imageName": "GenericComponent.png",
@@ -412,42 +308,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/ArgonCrystal",
-    "name": "Argon Crystal",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "ArgonCrystal.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Lens/PowerLensGreaterBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Forma",
-    "name": "Forma",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "GenericComponent.png",
-    "buildPrice": 35000,
-    "buildTime": 82800
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/OrokinCell",
-    "name": "Orokin Cell",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "ComponentCell.png",
-    "buildPrice": 15000,
-    "buildTime": 3600
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Upgrades/Focus/PowerLens",
-    "name": "Zenurik Lens",
-    "itemCount": 4,
-    "tradable": false,
-    "imageName": "FocusLens1Rank.png"
+    "itemCount": 4
    }
   ],
   "imageName": "FocusLens2Rank.png",
@@ -467,38 +344,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/Weapons/SingleKamaBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Circuits",
-    "name": "Circuits",
-    "itemCount": 900,
-    "tradable": false,
-    "imageName": "ComponentCircuits.png"
+    "itemCount": 900
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Ferrite",
-    "name": "Ferrite",
-    "itemCount": 1200,
-    "tradable": false,
-    "imageName": "ComponentFerrite.png"
+    "itemCount": 1200
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/NeuralSensor",
-    "name": "Neural Sensors",
-    "itemCount": 5,
-    "tradable": false,
-    "imageName": "NeuralSensor.png"
+    "itemCount": 5
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/PolymerBundle",
-    "name": "Polymer Bundle",
-    "itemCount": 1200,
-    "tradable": false,
-    "imageName": "PolymerBundle.png"
+    "itemCount": 1200
    }
   ],
   "imageName": "Kama.png",
@@ -517,24 +379,15 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/Lens/PowerLensLuaBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Upgrades/Focus/PowerLensOstron",
-    "name": "Eidolon Zenurik Lens",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "FocusLens3Rank.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/MemoryCryptoFragment",
-    "name": "Somatic Fibers",
-    "itemCount": 5,
-    "tradable": false,
-    "imageName": "MemoryCryptoFragment.png"
+    "itemCount": 5
    }
   ],
   "imageName": "FocusLens4Rank.png",
@@ -552,38 +405,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/Components/MorphicsResourceBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Ferrite",
-    "name": "Ferrite",
-    "itemCount": 10000,
-    "tradable": false,
-    "imageName": "ComponentFerrite.png"
+    "itemCount": 10000
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Nanospores",
-    "name": "Nano Spores",
-    "itemCount": 25000,
-    "tradable": false,
-    "imageName": "ComponentNanospores.png"
+    "itemCount": 25000
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/PolymerBundle",
-    "name": "Polymer Bundle",
-    "itemCount": 5000,
-    "tradable": false,
-    "imageName": "PolymerBundle.png"
+    "itemCount": 5000
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 10000,
-    "tradable": false,
-    "imageName": "ComponentSalvage.png"
+    "itemCount": 10000
    }
   ],
   "imageName": "ComponentMorphic.png",
@@ -610,31 +448,19 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/AlloyPlate",
-    "name": "Alloy Plate",
-    "itemCount": 50000,
-    "tradable": false,
-    "imageName": "AlloyPlate.png"
+    "itemCount": 50000
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Components/NeuralSensorResourceBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Nanospores",
-    "name": "Nano Spores",
-    "itemCount": 50000,
-    "tradable": false,
-    "imageName": "ComponentNanospores.png"
+    "itemCount": 50000
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 25000,
-    "tradable": false,
-    "imageName": "ComponentSalvage.png"
+    "itemCount": 25000
    }
   ],
   "imageName": "NeuralSensor.png",
@@ -652,31 +478,19 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/AlloyPlate",
-    "name": "Alloy Plate",
-    "itemCount": 50000,
-    "tradable": false,
-    "imageName": "AlloyPlate.png"
+    "itemCount": 50000
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Components/NeurodeResourceBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Nanospores",
-    "name": "Nano Spores",
-    "itemCount": 50000,
-    "tradable": false,
-    "imageName": "ComponentNanospores.png"
+    "itemCount": 50000
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 25000,
-    "tradable": false,
-    "imageName": "ComponentSalvage.png"
+    "itemCount": 25000
    }
   ],
   "imageName": "ComponentNeurode.png",
@@ -694,31 +508,19 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/AlloyPlate",
-    "name": "Alloy Plate",
-    "itemCount": 50000,
-    "tradable": false,
-    "imageName": "AlloyPlate.png"
+    "itemCount": 50000
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Components/OrokinCellResourceBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Nanospores",
-    "name": "Nano Spores",
-    "itemCount": 50000,
-    "tradable": false,
-    "imageName": "ComponentNanospores.png"
+    "itemCount": 50000
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 25000,
-    "tradable": false,
-    "imageName": "ComponentSalvage.png"
+    "itemCount": 25000
    }
   ],
   "imageName": "ComponentCell.png",
@@ -765,38 +567,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/AlloyPlate",
-    "name": "Alloy Plate",
-    "itemCount": 1100,
-    "tradable": false,
-    "imageName": "AlloyPlate.png"
+    "itemCount": 1100
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Weapons/SkanaSwordBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "tradable": false,
-    "imageName": "blueprint.png"
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Morphic",
-    "name": "Morphics",
-    "itemCount": 3,
-    "tradable": false,
-    "imageName": "ComponentMorphic.png"
+    "itemCount": 3
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Plastids",
-    "name": "Plastids",
-    "itemCount": 500,
-    "tradable": false,
-    "imageName": "ComponentPlastids.png"
+    "itemCount": 500
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 750,
-    "tradable": false,
-    "imageName": "ComponentSalvage.png"
+    "itemCount": 750
    }
   ],
   "imageName": "Skana.png",

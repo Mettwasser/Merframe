@@ -379,7 +379,7 @@ mod tests {
              "drops":[{"location":"Saturn/Ceres","type":"Orokin Cell","chance":1.5,
                        "rarity":"Common"}]}
         ]"#;
-        let data = GameData::from_json(SLIM_ITEMS, RELICS, COMPONENTS).unwrap();
+        let data = GameData::from_json(SLIM_ITEMS, RELICS, "[]").unwrap();
         let (_, cell) = data
             .component_by_unique_name("/Lotus/Types/Items/MiscItems/OrokinCell")
             .unwrap();

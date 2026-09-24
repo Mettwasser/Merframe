@@ -292,38 +292,23 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/Helmets/BrawlerAltHelmetBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "imageName": "blueprint.png",
-    "tradable": false
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Neurode",
-    "name": "Neurodes",
-    "itemCount": 2,
-    "imageName": "ComponentNeurode.png",
-    "tradable": false
+    "itemCount": 2
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/OrokinCell",
-    "name": "Orokin Cell",
-    "itemCount": 1,
-    "imageName": "ComponentCell.png",
-    "tradable": false
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/OxiumAlloy",
-    "name": "Oxium",
-    "itemCount": 400,
-    "imageName": "ComponentOxium.png",
-    "tradable": false
+    "itemCount": 400
    },
    {
     "uniqueName": "/Lotus/Types/Items/MiscItems/Salvage",
-    "name": "Salvage",
-    "itemCount": 1200,
-    "imageName": "ComponentSalvage.png",
-    "tradable": false
+    "itemCount": 1200
    }
   ]
  },
@@ -890,27 +875,15 @@
   "components": [
    {
     "uniqueName": "/Lotus/Types/Recipes/Kubrow/Collars/PrimeKubrowCollarABlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "imageName": "blueprint.png",
-    "tradable": true,
-    "ducats": 45
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Kubrow/Collars/PrimeKubrowCollarABandComponent",
-    "name": "Kavasa Prime Band",
-    "itemCount": 1,
-    "imageName": "GenericComponentPrimeLatch.png",
-    "tradable": true,
-    "ducats": 45
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Kubrow/Collars/PrimeKubrowCollarABuckleComponent",
-    "name": "Kavasa Prime Buckle",
-    "itemCount": 1,
-    "imageName": "GenericComponentPrimePlug.png",
-    "tradable": true,
-    "ducats": 65
+    "itemCount": 1
    }
   ]
  },
@@ -973,19 +946,11 @@
   "components": [
    {
     "uniqueName": "/Lotus/Upgrades/Skins/Rhino/RhinoHelmetAltB",
-    "name": "Arcane Vanguard Helmet",
-    "buildPrice": 20000,
-    "buildTime": 43200,
-    "itemCount": 1,
-    "imageName": "RhinoSeries3Helmet.png",
-    "tradable": false
+    "itemCount": 1
    },
    {
     "uniqueName": "/Lotus/Types/Recipes/Helmets/ConversionRhinoHelmetAltBBlueprint",
-    "name": "Blueprint",
-    "itemCount": 1,
-    "imageName": "blueprint.png",
-    "tradable": false
+    "itemCount": 1
    }
   ]
  },

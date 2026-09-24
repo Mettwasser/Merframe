@@ -418,6 +418,17 @@ fn warframe_like(item: &Item) -> bool {
         || item.is_necramech()
 }
 
+/// Test-only helper: fixtures carry component *references*, so resolve them before
+/// handing out `Item`s. Components are not needed by the callers, hence the empty map.
+#[cfg(test)]
+pub(crate) fn items_from_json(json: &str) -> Vec<Item> {
+    let refs: Vec<ItemRef> = serde_json::from_str(json).unwrap();
+    let component_map = ComponentMap::from_component_vec(Vec::new());
+    refs.into_iter()
+        .map(|item_ref| item_ref.resolve(&component_map))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -455,7 +466,7 @@ mod tests {
     const MASTERY_ITEMS: &str = include_str!("../../../fixtures/mastery_items.json");
 
     fn fixture_items() -> Vec<Item> {
-        serde_json::from_str(MASTERY_ITEMS).unwrap()
+        items_from_json(MASTERY_ITEMS)
     }
 
     #[test]
@@ -623,8 +634,7 @@ mod tests {
 
     #[test]
     fn skins_grant_no_mastery() {
-        let skins: Vec<Item> =
-            serde_json::from_str(include_str!("../tests/fixtures/skins.json")).unwrap();
+        let skins: Vec<Item> = items_from_json(include_str!("../tests/fixtures/skins.json"));
         assert_eq!(skins.len(), 13);
         assert!(skins.iter().all(Item::is_skin));
         assert!(!skins.iter().any(Item::masterable));
