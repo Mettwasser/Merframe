@@ -37,8 +37,12 @@ impl Catalog {
         Self { data }
     }
 
-    pub fn from_json(items_json: &str, relics_json: &str) -> Result<Self> {
-        Ok(Self::new(GameData::from_json(items_json, relics_json)?))
+    pub fn from_json(items_json: &str, relics_json: &str, components_json: &str) -> Result<Self> {
+        Ok(Self::new(GameData::from_json(
+            items_json,
+            relics_json,
+            components_json,
+        )?))
     }
 
     pub fn data(&self) -> &GameData {
@@ -268,9 +272,10 @@ pub mod fixtures {
     pub const FOUNDRY_ITEMS: &str = include_str!("../../wf-data/tests/fixtures/foundry_items.json");
     pub const RIVEN_ITEMS: &str = include_str!("../../wf-data/tests/fixtures/riven_items.json");
     pub const SKINS: &str = include_str!("../../wf-data/tests/fixtures/skins.json");
+    pub const COMPONENTS: &str = include_str!("../../wf-data/tests/fixtures/components.json");
 
     pub fn catalog() -> Catalog {
-        Catalog::from_json(ITEMS, RELICS).unwrap()
+        Catalog::from_json(ITEMS, RELICS, COMPONENTS).unwrap()
     }
 
     pub fn with_skins(items_json: &str) -> Catalog {
@@ -278,11 +283,11 @@ pub mod fixtures {
         let mut skins: Vec<serde_json::Value> = serde_json::from_str(SKINS).unwrap();
         merged.append(&mut skins);
         let merged = serde_json::to_string(&merged).unwrap();
-        Catalog::from_json(&merged, RELICS).unwrap()
+        Catalog::from_json(&merged, RELICS, COMPONENTS).unwrap()
     }
 
     pub fn foundry_catalog() -> Catalog {
-        Catalog::from_json(FOUNDRY_ITEMS, RELICS).unwrap()
+        Catalog::from_json(FOUNDRY_ITEMS, RELICS, COMPONENTS).unwrap()
     }
 
     pub fn inventory_stocked(
@@ -325,7 +330,7 @@ pub mod fixtures {
     }
 
     pub fn mastery_catalog() -> Catalog {
-        Catalog::from_json(MASTERY_ITEMS, RELICS).unwrap()
+        Catalog::from_json(MASTERY_ITEMS, RELICS, COMPONENTS).unwrap()
     }
 
     pub fn inventory() -> wf_inventory::Inventory {
@@ -494,7 +499,7 @@ mod tests {
                  "itemCount": 1, "tradable": false}
              ]}
         ]"#;
-        let catalog = Catalog::from_json(items, fixtures::RELICS).unwrap();
+        let catalog = Catalog::from_json(items, fixtures::RELICS, fixtures::COMPONENTS).unwrap();
         let forma = "/Lotus/Types/Items/MiscItems/Forma";
         assert!(catalog.component(forma).is_some());
         assert!(catalog.component_for_reward(forma).is_none());

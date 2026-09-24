@@ -489,7 +489,8 @@ mod tests {
 
     #[test]
     fn tradable_gate() {
-        let catalog = Catalog::from_json(GATE_ITEMS, fixtures::RELICS).unwrap();
+        let catalog =
+            Catalog::from_json(GATE_ITEMS, fixtures::RELICS, fixtures::COMPONENTS).unwrap();
         let tradable = |unique_name: &str| is_tradable_misc(&catalog, unique_name);
 
         assert!(tradable("/Lotus/Upgrades/Skins/Rhino/RhinoHelmetAltB"));
@@ -570,7 +571,8 @@ mod tests {
             ],
             &[],
         );
-        let catalog = Catalog::from_json(SPARE_WEAPONS, fixtures::RELICS).unwrap();
+        let catalog =
+            Catalog::from_json(SPARE_WEAPONS, fixtures::RELICS, fixtures::COMPONENTS).unwrap();
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
@@ -595,7 +597,8 @@ mod tests {
     #[test]
     fn faction_weapons_and_imprints() {
         let inventory = fixtures::inventory();
-        let catalog = Catalog::from_json(MISC_ITEMS, fixtures::RELICS).unwrap();
+        let catalog =
+            Catalog::from_json(MISC_ITEMS, fixtures::RELICS, fixtures::COMPONENTS).unwrap();
         let prices = FixedPrices::new([("prisma_angstrum", 32.0), ("vasca_kavat_imprint", 15.0)]);
         let rows = misc(&View {
             inventory: &inventory,
@@ -645,7 +648,7 @@ mod tests {
     const MISC_ITEMS_EXPORT: &str = include_str!("../../../../fixtures/misc_items.json");
 
     fn misc_catalog() -> Catalog {
-        Catalog::from_json(MISC_ITEMS_EXPORT, fixtures::RELICS).unwrap()
+        Catalog::from_json(MISC_ITEMS_EXPORT, fixtures::RELICS, fixtures::COMPONENTS).unwrap()
     }
 
     fn misc_catalog_without(categories: &[&str]) -> Catalog {
@@ -655,7 +658,7 @@ mod tests {
             .filter(|entry| !categories.contains(&entry["category"].as_str().unwrap_or_default()))
             .collect();
         let json = serde_json::to_string(&kept).unwrap();
-        Catalog::from_json(&json, fixtures::RELICS).unwrap()
+        Catalog::from_json(&json, fixtures::RELICS, fixtures::COMPONENTS).unwrap()
     }
 
     fn path_derived(catalog: &Catalog, row: &MiscRow) -> bool {

@@ -223,7 +223,7 @@ mod tests {
         assert_eq!(wiki_url(&catalog, "/Lotus/Nope"), None);
 
         let fandom = fixtures::ITEMS.replace(WIKI, "https://warframe.fandom.com/wiki/");
-        let moved = Catalog::from_json(&fandom, fixtures::RELICS).unwrap();
+        let moved = Catalog::from_json(&fandom, fixtures::RELICS, fixtures::COMPONENTS).unwrap();
         assert_eq!(
             wiki_url(&moved, EXCALIBUR).as_deref(),
             Some("https://wiki.warframe.com/w/Excalibur")

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::error::{DataError, MappingErrorKind, Result};
+use crate::error::{DataError, Result};
 use crate::item::{Component, ComponentMap, Item, ItemRef, Rarity};
 use crate::relic::{Refinement, Relic, parse_relics};
 use crate::riven::RivenData;
@@ -14,7 +14,6 @@ pub struct GameData {
     relic_name_index: HashMap<String, usize>,
     relic_unique_name_index: HashMap<String, (usize, Refinement)>,
     riven_data: RivenData,
-    pub component_map: ComponentMap,
 }
 
 impl GameData {
@@ -48,19 +47,16 @@ impl GameData {
         )
     }
 
-    fn build(item_refs: Vec<ItemRef>, relics: &str, component_map: ComponentMap) -> Result<Self> {
-        let parsed = item_refs
+    fn build(
+        item_refs: Vec<ItemRef>,
+        relics: &str,
+        mut component_map: ComponentMap,
+    ) -> Result<Self> {
+        component_map.fill_missing_from_items(&item_refs);
+        let parsed: Vec<Item> = item_refs
             .into_iter()
-            .map(|item_ref| {
-                let name = item_ref.unique_name.clone();
-                item_ref
-                    .resolve(&component_map)
-                    .ok_or_else(move || DataError::Mapping {
-                        item_unique_name: name,
-                        kind: MappingErrorKind::NotFound,
-                    })
-            })
-            .collect::<Result<Vec<_>>>()?;
+            .map(|item_ref| item_ref.resolve(&component_map))
+            .collect();
 
         let parsed: Vec<Item> = parsed
             .into_iter()
@@ -137,7 +133,6 @@ impl GameData {
             relic_name_index,
             relic_unique_name_index,
             riven_data,
-            component_map,
         })
     }
 
@@ -365,6 +360,33 @@ mod tests {
             .unwrap();
         assert_eq!(item.name, "Trinity Prime");
         assert_eq!(component.name, "Systems");
+    }
+
+    #[test]
+    fn ingredient_resolved_from_item_record() {
+        // Production item files carry only `uniqueName`/`itemCount` for component
+        // references; the ingredient's own record lives in the item categories and must
+        // be used for its name/image/drops rather than a name derived from the path.
+        const SLIM_ITEMS: &str = r#"[
+            {"uniqueName":"/Lotus/Weapons/Tenno/Rifle/BratonPrime","name":"Braton Prime",
+             "category":"Primary","type":"LongGuns","tradable":true,
+             "components":[
+                {"uniqueName":"/Lotus/Types/Items/MiscItems/OrokinCell","itemCount":10}
+             ]},
+            {"uniqueName":"/Lotus/Types/Items/MiscItems/OrokinCell","name":"Orokin Cell",
+             "category":"Misc","type":"Resource","tradable":false,
+             "imageName":"ComponentCell.png",
+             "drops":[{"location":"Saturn/Ceres","type":"Orokin Cell","chance":1.5,
+                       "rarity":"Common"}]}
+        ]"#;
+        let data = GameData::from_json(SLIM_ITEMS, RELICS, COMPONENTS).unwrap();
+        let (_, cell) = data
+            .component_by_unique_name("/Lotus/Types/Items/MiscItems/OrokinCell")
+            .unwrap();
+        assert_eq!(cell.name, "Orokin Cell");
+        assert_eq!(cell.image_name.as_deref(), Some("ComponentCell.png"));
+        assert!(cell.drops.is_some());
+        assert_eq!(cell.item_count, 10);
     }
 
     #[test]

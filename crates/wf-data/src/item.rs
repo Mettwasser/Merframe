@@ -24,6 +24,7 @@ pub struct MarketSlug {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Drop {
+    #[serde(default, deserialize_with = "null_as_zero")]
     pub chance: f64,
     pub location: String,
     pub rarity: Rarity,
@@ -31,6 +32,13 @@ pub struct Drop {
     pub drop_type: String,
     #[serde(rename = "uniqueName")]
     pub unique_name: Option<String>,
+}
+
+fn null_as_zero<'de, D>(deserializer: D) -> std::result::Result<f64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Option::<f64>::deserialize(deserializer)?.unwrap_or(0.0))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,12 +69,22 @@ pub struct Component {
     pub item_count: u32,
 }
 
-/// A component that is a reference into the components json
+/// A component reference from an item file. Production item files carry only
+/// `uniqueName`/`itemCount` (the full record lives in `Components.json` or the item
+/// categories); the remaining fields tolerate richer legacy fixtures and are preferred
+/// for references the shared map does not contain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComponentRef {
     #[serde(rename = "uniqueName")]
     pub unique_name: String,
+    #[serde(rename = "itemCount")]
     pub item_count: Option<u32>,
+    pub name: Option<String>,
+    pub tradable: Option<bool>,
+    #[serde(rename = "imageName")]
+    pub image_name: Option<String>,
+    pub drops: Option<Vec<Drop>>,
+    pub ducats: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,6 +105,64 @@ impl ComponentMap {
     pub fn get(&self, key: &str) -> Option<&Component> {
         self.map.get(key)
     }
+
+    /// `Components.json` only lists craftable components. Item files also reference
+    /// ingredients (resources, fish parts, ...) that live in the regular item categories,
+    /// so fill those in from the item records. References that carry their own inline
+    /// record (legacy fixtures) are left to `ItemRef::resolve`, which keeps them per item.
+    pub fn fill_missing_from_items(&mut self, items: &[ItemRef]) {
+        let by_unique_name: HashMap<&str, &ItemRef> = items
+            .iter()
+            .map(|item| (item.unique_name.as_str(), item))
+            .collect();
+        for component_ref in items
+            .iter()
+            .filter_map(|item| item.components.as_deref())
+            .flatten()
+        {
+            if self.map.contains_key(&component_ref.unique_name) || component_ref.name.is_some() {
+                continue;
+            }
+            let unique_name = component_ref.unique_name.as_str();
+            let (name, tradable, image_name, drops) = by_unique_name.get(unique_name).map_or_else(
+                || (display_name_from_path(unique_name), false, None, None),
+                |item| {
+                    (
+                        item.name.clone(),
+                        item.tradable,
+                        item.image_name.clone(),
+                        item.drops.clone(),
+                    )
+                },
+            );
+            self.map.insert(
+                unique_name.to_owned(),
+                Component {
+                    unique_name: unique_name.to_owned(),
+                    name,
+                    tradable,
+                    ducats: None,
+                    drops,
+                    image_name,
+                    build_price: None,
+                    build_time: None,
+                    item_count: 0,
+                },
+            );
+        }
+    }
+}
+
+fn display_name_from_path(path: &str) -> String {
+    let tail = path.rsplit_once('/').map_or(path, |(_, tail)| tail);
+    let mut out = String::with_capacity(tail.len() + 8);
+    for (index, character) in tail.char_indices() {
+        if index > 0 && character.is_ascii_uppercase() {
+            out.push(' ');
+        }
+        out.push(character);
+    }
+    out
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,6 +179,7 @@ pub struct ItemRef {
     #[serde(rename = "productCategory")]
     pub product_category: Option<String>,
     pub components: Option<Vec<ComponentRef>>,
+    pub drops: Option<Vec<Drop>>,
     #[serde(rename = "warframeMarket")]
     pub warframe_market: Option<MarketSlug>,
     #[serde(rename = "imageName")]
@@ -135,8 +212,8 @@ pub struct ItemRef {
 }
 
 impl ItemRef {
-    pub fn resolve(self, component_map: &ComponentMap) -> Option<Item> {
-        Some(Item {
+    pub fn resolve(self, component_map: &ComponentMap) -> Item {
+        Item {
             unique_name: self.unique_name,
             name: self.name,
             category: self.category,
@@ -144,15 +221,30 @@ impl ItemRef {
             tradable: self.tradable,
             mastery_req: self.mastery_req,
             product_category: self.product_category,
-            components: self.components.map(|v| {
-                v.into_iter()
+            components: self.components.map(|refs| {
+                refs.into_iter()
                     .map(|component_ref| {
-                        let mut component = component_map.get(&component_ref.unique_name)?.clone();
+                        let mut component = component_map
+                            .get(&component_ref.unique_name)
+                            .cloned()
+                            .unwrap_or_else(|| Component {
+                                name: component_ref.name.clone().unwrap_or_else(|| {
+                                    display_name_from_path(&component_ref.unique_name)
+                                }),
+                                tradable: component_ref.tradable.unwrap_or(false),
+                                ducats: component_ref.ducats,
+                                drops: component_ref.drops.clone(),
+                                image_name: component_ref.image_name.clone(),
+                                build_price: None,
+                                build_time: None,
+                                item_count: 0,
+                                unique_name: component_ref.unique_name.clone(),
+                            });
                         component.item_count = component_ref.item_count.unwrap_or(0);
-                        Some(component)
+                        component
                     })
-                    .collect::<Option<Vec<_>>>()
-            })?,
+                    .collect()
+            }),
             warframe_market: self.warframe_market,
             image_name: self.image_name,
             wikia_url: self.wikia_url,
@@ -170,7 +262,7 @@ impl ItemRef {
             upgrade_entries: self.upgrade_entries,
             fusion_limit: self.fusion_limit,
             level_stats: self.level_stats,
-        })
+        }
     }
 }
 
@@ -479,6 +571,15 @@ mod tests {
                 "affinity {affinity}"
             );
         }
+    }
+
+    #[test]
+    fn null_drop_chance() {
+        let drops: Vec<Drop> = serde_json::from_str(
+            r#"[{"chance":null,"location":"X","rarity":"Legendary","type":"Y"}]"#,
+        )
+        .unwrap();
+        assert!(drops[0].chance.abs() < f64::EPSILON);
     }
 
     #[test]
