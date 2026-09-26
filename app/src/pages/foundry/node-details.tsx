@@ -1,16 +1,17 @@
 import { Archive, ExternalLink } from "lucide-react";
 import { useCallback } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { GameIcon } from "@/components/game-icon";
 import { ItemImage } from "@/components/item-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/ui/hint";
 import { api, reportError } from "@/lib/bridge";
-import { marketListingPath, num, percent } from "@/lib/format";
+import { num, percent } from "@/lib/format";
 import { occurrenceKeys } from "@/lib/keys";
 import { cn } from "@/lib/utils";
-import type { CraftNode, NodeDrop, NodeMarket } from "@/types";
+import { useMarketPanelStore } from "@/stores/market-panel-store";
+import type { CraftNode, NodeDrop, NodeMarket, OrderType } from "@/types";
 
 function dropKey(drop: NodeDrop): string {
   if (drop.kind === "relic") {
@@ -101,17 +102,26 @@ function DropLocations({ drops }: { drops: NodeDrop[] }) {
   );
 }
 
-function MarketButtons({ market }: { market: NodeMarket }) {
+function MarketButtons({
+  market,
+  onOpen,
+}: {
+  market: NodeMarket;
+  onOpen: () => void;
+}) {
+  const openListing = useMarketPanelStore((state) => state.openListing);
+  const open = (side: OrderType) => {
+    onOpen();
+    openListing(market.slug, side);
+  };
   return (
     <>
-      <Button variant="outline" size="sm" asChild>
-        <Link to={marketListingPath(market.slug, "sell")}>Sell</Link>
+      <Button variant="outline" size="sm" onClick={() => open("sell")}>
+        Sell
       </Button>
-      <Button variant="outline" size="sm" asChild>
-        <Link to={marketListingPath(market.slug, "buy")}>
-          Buy {num(market.sell)}
-          <GameIcon name="platinum" size={16} alt="Platinum" />
-        </Link>
+      <Button variant="outline" size="sm" onClick={() => open("buy")}>
+        Buy {num(market.sell)}
+        <GameIcon name="platinum" size={16} alt="Platinum" />
       </Button>
     </>
   );
@@ -136,7 +146,13 @@ function Counts({ node }: { node: CraftNode }) {
   );
 }
 
-export function NodeDetails({ node }: { node: CraftNode }) {
+export function NodeDetails({
+  node,
+  onListing,
+}: {
+  node: CraftNode;
+  onListing: () => void;
+}) {
   return (
     <div className="flex flex-col gap-2 border-t pt-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -147,7 +163,9 @@ export function NodeDetails({ node }: { node: CraftNode }) {
         </Hint>
         <Counts node={node} />
         <span className="ml-auto flex items-center gap-1">
-          {node.market && <MarketButtons market={node.market} />}
+          {node.market && (
+            <MarketButtons market={node.market} onOpen={onListing} />
+          )}
           {node.wiki_url && <WikiButton url={node.wiki_url} />}
         </span>
       </div>
