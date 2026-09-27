@@ -9,6 +9,7 @@ depends=('webkit2gtk-4.1' 'gtk3' 'hicolor-icon-theme')
 makedepends=('cargo' 'nodejs' 'pnpm')
 source=("Merframe-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
+options=('!lto')
 
 prepare() {
   cd "Merframe-$pkgver/app"
