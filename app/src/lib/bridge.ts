@@ -42,8 +42,6 @@ function call<T>(command: string, args?: Args): Promise<T> {
 }
 
 export const events = {
-  appReady: "app-ready",
-  appError: "app-error",
   coreEvent: "core-event",
   inventoryUpdated: "inventory-updated",
   statusUpdated: "status-updated",
@@ -73,10 +71,6 @@ function commandError(error: unknown): CommandError | null {
     return error as CommandError;
   }
   return null;
-}
-
-export function isStarting(error: unknown): boolean {
-  return commandError(error)?.code === "starting";
 }
 
 export function errorMessage(error: unknown): string {

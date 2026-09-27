@@ -15,7 +15,7 @@ use crate::state::{GameStatus, lock, read, write};
 
 #[tauri::command]
 pub async fn game_status(state: Shared<'_>) -> CommandResult<GameStatus> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(state.status_snapshot())
 }
 
@@ -26,7 +26,7 @@ pub fn updates_supported() -> bool {
 
 #[tauri::command]
 pub async fn overlay_state(state: Shared<'_>) -> CommandResult<overlay::OverlayState> {
-    Ok(ready(&state)?.overlays.snapshot())
+    Ok(ready(&state).await?.overlays.snapshot())
 }
 
 #[tauri::command]
@@ -34,7 +34,7 @@ pub async fn overlay_page_ready<R: Runtime>(
     window: tauri::WebviewWindow<R>,
     state: Shared<'_>,
 ) -> CommandResult<()> {
-    overlay::on_page_ready(window.app_handle(), &ready(&state)?, window.label());
+    overlay::on_page_ready(window.app_handle(), &ready(&state).await?, window.label());
     Ok(())
 }
 
@@ -48,7 +48,7 @@ pub async fn rescan_inventory<R: Runtime>(
     app: AppHandle<R>,
     state: Shared<'_>,
 ) -> CommandResult<GameStatus> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     if runtime::acquire(&app, &state).await {
         Ok(state.status_snapshot())
     } else {
@@ -66,7 +66,7 @@ pub async fn export<R: Runtime>(
     app: AppHandle<R>,
     state: Shared<'_>,
 ) -> CommandResult<Option<String>> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let picked = app
         .dialog()
         .file()
@@ -95,7 +95,7 @@ pub async fn pick_log_file<R: Runtime>(app: AppHandle<R>) -> CommandResult<Optio
 
 #[tauri::command]
 pub async fn settings_get(state: Shared<'_>) -> CommandResult<Settings> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(read(&state.settings).clone())
 }
 
@@ -105,7 +105,7 @@ pub async fn settings_set<R: Runtime>(
     state: Shared<'_>,
     settings: Settings,
 ) -> CommandResult<Settings> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     settings::save(&app, &settings)?;
     lock(&state.core).set_alert_settings(settings.alerts.clone());
     *write(&state.settings) = settings.clone();
@@ -119,7 +119,7 @@ pub async fn test_notifications<R: Runtime>(
     state: Shared<'_>,
     settings: Settings,
 ) -> CommandResult<()> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     runtime::test_notifications(&app, &state, &settings).await?;
     Ok(())
 }
@@ -129,7 +129,7 @@ pub async fn refresh_prices<R: Runtime>(
     app: AppHandle<R>,
     state: Shared<'_>,
 ) -> CommandResult<usize> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(runtime::refresh_prices(&app, &state).await?)
 }
 
@@ -146,7 +146,7 @@ pub async fn open_data_folder<R: Runtime>(
     app: AppHandle<R>,
     state: Shared<'_>,
 ) -> CommandResult<()> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(app
         .opener()
         .reveal_item_in_dir(state.data_dir.join("merframe.log"))
@@ -158,7 +158,7 @@ pub async fn open_game_log_folder<R: Runtime>(
     app: AppHandle<R>,
     state: Shared<'_>,
 ) -> CommandResult<()> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let log = read(&state.settings)
         .log_path()
         .context("EE.log not found on this machine")?;
@@ -170,13 +170,13 @@ pub async fn open_game_log_folder<R: Runtime>(
 
 #[tauri::command]
 pub async fn item_image(state: Shared<'_>, image_name: String) -> CommandResult<String> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     state.images.get(&image_name).await
 }
 
 #[tauri::command]
 pub async fn prefetch_images(state: Shared<'_>, names: Vec<String>) -> CommandResult<usize> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let mut wanted = names;
     wanted.sort_unstable();
     wanted.dedup();

@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use tauri::plugin::TauriPlugin;
 use tauri::{Manager, Runtime, Url};
-use tracing::{debug, error, warn};
+use tracing::{error, warn};
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 use crate::state::{AppState, AppStateCell};
@@ -85,25 +85,22 @@ fn init_tracing(data_dir: &Path) -> std::io::Result<()> {
 }
 
 async fn publish_state(handle: tauri::AppHandle) {
+    let cell = handle.state::<AppStateCell>();
     match AppState::build(&handle).await {
         Ok(state) => {
             let state = Arc::new(state);
-            if handle
-                .state::<AppStateCell>()
-                .set(Arc::clone(&state))
-                .is_err()
-            {
+            if cell.set(Ok(Arc::clone(&state))).is_err() {
                 error!("App state built a second time");
             }
-            debug!("App state published, commands live");
             overlay::apply_from(&handle, &state);
             runtime::spawn(handle.clone(), state);
-            runtime::emit(&handle, "app-ready", ());
         }
         Err(error) => {
             let message = format!("{error:#}");
             error!(message, "Startup failed");
-            runtime::emit(&handle, "app-error", message);
+            if cell.set(Err(message)).is_err() {
+                error!("App state built a second time");
+            }
         }
     }
 }

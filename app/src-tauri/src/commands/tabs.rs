@@ -13,13 +13,13 @@ use crate::state::{lock, read};
 
 #[tauri::command]
 pub async fn inventory_tab(state: Shared<'_>) -> CommandResult<InventoryTab> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     compute(state, wf_core::Core::inventory_tab).await
 }
 
 #[tauri::command]
 pub async fn foundry_tab(state: Shared<'_>) -> CommandResult<FoundryTab> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let include_founders = read(&state.settings)
         .mastery_options(MasteryOrdering::default())
         .include_founders_items;
@@ -31,7 +31,7 @@ pub async fn foundry_tab(state: Shared<'_>) -> CommandResult<FoundryTab> {
 
 #[tauri::command]
 pub async fn craft_tree(state: Shared<'_>, unique_name: String) -> CommandResult<CraftDetails> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     compute(state, move |core| core.craft_tree(&unique_name)).await
 }
 
@@ -42,7 +42,7 @@ pub async fn mastery_tab(
     include_founders: Option<bool>,
     include_forma_ranks: Option<bool>,
 ) -> CommandResult<MasteryTab> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let stored = read(&state.settings).mastery_options(ordering.unwrap_or_default());
     let options = MasteryOptions {
         ordering: stored.ordering,
@@ -54,7 +54,7 @@ pub async fn mastery_tab(
 
 #[tauri::command]
 pub async fn resources_tab(state: Shared<'_>, query: ResourceQuery) -> CommandResult<ResourcesTab> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let include_founders = read(&state.settings)
         .mastery_options(MasteryOrdering::default())
         .include_founders_items;
@@ -70,7 +70,7 @@ pub async fn relic_planner_tab(
     squad_size: Option<u32>,
     only_owned: Option<bool>,
 ) -> CommandResult<RelicPlannerTab> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let squad = squad_size.unwrap_or(wf_core::DEFAULT_SQUAD_SIZE);
     let owned = only_owned.unwrap_or(true);
     compute(state, move |core| core.relic_planner_tab(squad, owned)).await
@@ -78,7 +78,7 @@ pub async fn relic_planner_tab(
 
 #[tauri::command]
 pub async fn rivens_tab(state: Shared<'_>) -> CommandResult<RivensTab> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     compute(state, wf_core::Core::rivens_tab).await
 }
 
@@ -88,7 +88,7 @@ pub async fn riven_comparables(
     weapon_slug: String,
     shown: Vec<ComparedStat>,
 ) -> CommandResult<Option<RivenComparables>> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let Some(auctions) = state.auctions.weapon(&state.http, &weapon_slug).await? else {
         return Ok(None);
     };
@@ -97,7 +97,7 @@ pub async fn riven_comparables(
 
 #[tauri::command]
 pub async fn stats_tab(state: Shared<'_>, since_ms: Option<i64>) -> CommandResult<StatsTab> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let range = match since_ms.and_then(DateTime::from_timestamp_millis) {
         Some(from) => TimeRange::since(from),
         None => TimeRange::all(),
@@ -111,7 +111,7 @@ pub async fn toggle_favourite<R: Runtime>(
     state: Shared<'_>,
     unique_name: String,
 ) -> CommandResult<bool> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let favourite = lock(&state.core).toggle_favourite(&unique_name)?;
     runtime::emit(&app, runtime::INVENTORY_UPDATED, state.status_snapshot());
     Ok(favourite)
@@ -122,13 +122,13 @@ pub async fn relics_for(
     state: Shared<'_>,
     part_unique_name: String,
 ) -> CommandResult<Vec<RelicSource>> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     compute(state, move |core| core.relics_for(&part_unique_name)).await
 }
 
 #[tauri::command]
 pub async fn recommend(state: Shared<'_>, rewards: Vec<String>) -> CommandResult<RewardScreen> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let balance_shown = read(&state.settings).overlays.overlay_account_balance;
     let mut screen =
         tauri::async_runtime::spawn_blocking(move || lock(&state.core).recommend(&rewards)).await?;

@@ -96,7 +96,6 @@ export function ResourcesPage() {
   const { data, error, loading, reload } = useAsyncData(load);
 
   useListen(events.inventoryUpdated, reload);
-  useListen(events.appReady, reload);
 
   const resources = useMemo(
     () => visibleResources(data?.resources ?? [], show, query),

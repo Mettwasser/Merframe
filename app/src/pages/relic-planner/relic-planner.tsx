@@ -77,7 +77,6 @@ export function RelicPlannerPage() {
   const { data, error, loading, reload } = useAsyncData(load);
 
   useListen(events.inventoryUpdated, reload);
-  useListen(events.appReady, reload);
 
   const scrollToPanel = (panel: RefObject<HTMLDivElement | null>) => {
     panel.current?.scrollIntoView({ behavior: "smooth", block: "start" });

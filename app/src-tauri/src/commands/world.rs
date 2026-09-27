@@ -293,7 +293,7 @@ impl WorldStateView {
 
 #[tauri::command]
 pub async fn worldstate(state: Shared<'_>) -> CommandResult<WorldStateView> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let fetched_at = read(&state.status).world_state_at;
     let world = read(&state.world);
     let core = lock(&state.core);

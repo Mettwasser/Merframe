@@ -195,7 +195,6 @@ export function MasteryPage() {
 
   useListen(events.inventoryUpdated, reload);
   useListen(events.pricesUpdated, reload);
-  useListen(events.appReady, reload);
 
   const topItems = data?.recommended ?? [];
   const routes = data?.routes ?? [];

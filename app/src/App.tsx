@@ -1,5 +1,5 @@
 import { check } from "@tauri-apps/plugin-updater";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { toast } from "sonner";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -10,8 +10,7 @@ import { StartupScreen } from "@/components/startup-screen";
 import { StatusBar } from "@/components/status-bar";
 import { Toaster } from "@/components/ui/sonner";
 import { UpdateDialog } from "@/components/update-dialog";
-import { useListen } from "@/hooks/use-listen";
-import { api, errorMessage, events, isStarting, logError } from "@/lib/bridge";
+import { api, errorMessage, logError } from "@/lib/bridge";
 import { AboutPage } from "@/pages/about";
 import { FoundryPage } from "@/pages/foundry/foundry";
 import { InventoryPage } from "@/pages/inventory";
@@ -27,118 +26,46 @@ import { WorldPage } from "@/pages/world/world";
 import { useAppStore } from "@/stores/app-store";
 import { useMarketPanelStore } from "@/stores/market-panel-store";
 
-function retryDelay(attempt: number, jitter: number): number {
-  const ceiling = Math.min(250 * 2 ** attempt, 4_000);
-  return Math.round(ceiling * (0.5 + jitter / 2));
-}
-
-function waitForRetry(delay: number, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve) => {
-    const finish = () => {
-      window.clearTimeout(timer);
-      signal.removeEventListener("abort", finish);
-      resolve();
-    };
-    const timer = window.setTimeout(finish, delay);
-    signal.addEventListener("abort", finish, { once: true });
-  });
-}
-
 function useBoot() {
-  const [retrySchedule, setRetrySchedule] = useState(() => ({
-    jitter: Math.random(),
-  }));
-  const [fatalError, setFatalError] = useState<string | null>(null);
+  const newest = useRef(0);
   const { setReady, setBootError, setStatus, setWorld, setSettings } =
     useAppStore();
 
-  const retry = useCallback(() => {
+  const boot = useCallback(async () => {
+    newest.current += 1;
+    const attempt = newest.current;
     setBootError(null);
-    setFatalError(null);
-    setRetrySchedule({ jitter: Math.random() });
-  }, [setBootError]);
-
-  const fail = useCallback(
-    (message: string) => {
-      setFatalError(message);
-      setReady(false);
+    try {
+      const [status, world, settings] = await Promise.all([
+        api.gameStatus(),
+        api.worldstate(),
+        api.settingsGet(),
+      ]);
+      if (attempt !== newest.current) {
+        return;
+      }
+      setStatus(status);
+      setWorld(world);
+      setSettings(settings);
+      setReady(true);
+    } catch (error) {
+      if (attempt !== newest.current) {
+        return;
+      }
+      const message = errorMessage(error);
       setBootError(message);
       toast.error(message);
-    },
-    [setBootError, setReady],
-  );
-
-  useListen(events.appReady, retry);
-  useListen<string>(events.appError, fail);
+    }
+  }, [setBootError, setReady, setSettings, setStatus, setWorld]);
 
   useEffect(() => {
-    if (fatalError) {
-      return;
-    }
-
-    const controller = new AbortController();
-
-    async function boot() {
-      let attempt = 0;
-      let failures = 0;
-
-      while (!controller.signal.aborted) {
-        try {
-          const [status, world, settings] = await Promise.all([
-            api.gameStatus(),
-            api.worldstate(),
-            api.settingsGet(),
-          ]);
-          if (controller.signal.aborted) {
-            return;
-          }
-
-          setStatus(status);
-          setWorld(world);
-          setSettings(settings);
-          setBootError(null);
-          setReady(true);
-          return;
-        } catch (error) {
-          if (controller.signal.aborted) {
-            return;
-          }
-
-          if (!isStarting(error)) {
-            failures += 1;
-            if (failures >= 5) {
-              fail(errorMessage(error));
-              return;
-            }
-          }
-
-          await waitForRetry(
-            retryDelay(attempt, retrySchedule.jitter),
-            controller.signal,
-          );
-          attempt += 1;
-        }
-      }
-    }
-
     boot();
-    return () => controller.abort();
-  }, [
-    fail,
-    fatalError,
-    retrySchedule,
-    setBootError,
-    setReady,
-    setSettings,
-    setStatus,
-    setWorld,
-  ]);
+    return () => {
+      newest.current += 1;
+    };
+  }, [boot]);
 
-  return retry;
+  return boot;
 }
 
 function MainWindow() {

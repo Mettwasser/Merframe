@@ -164,7 +164,6 @@ export function StatsPage() {
 
   useListen(events.inventoryUpdated, reload);
   useListen(events.pricesUpdated, reload);
-  useListen(events.appReady, reload);
 
   const points = data?.series ?? [];
   const summary = data?.summary ?? null;

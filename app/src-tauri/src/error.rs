@@ -3,16 +3,6 @@ use serde::Serialize;
 #[derive(Debug, Clone, Serialize)]
 pub struct CommandError {
     pub message: String,
-    pub code: Option<String>,
-}
-
-impl CommandError {
-    pub fn starting() -> Self {
-        Self {
-            message: "Merframe is still starting".to_owned(),
-            code: Some("starting".to_owned()),
-        }
-    }
 }
 
 impl From<anyhow::Error> for CommandError {
@@ -23,10 +13,7 @@ impl From<anyhow::Error> for CommandError {
 
 impl From<String> for CommandError {
     fn from(message: String) -> Self {
-        Self {
-            message,
-            code: None,
-        }
+        Self { message }
     }
 }
 
@@ -81,18 +68,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn starting_code() {
-        let error = CommandError::starting();
-        let json = serde_json::to_value(&error).unwrap();
-        assert_eq!(json["code"], "starting");
-        assert_eq!(json["message"], "Merframe is still starting");
-    }
-
-    #[test]
-    fn anyhow_message_no_code() {
+    fn anyhow_message() {
         let error = CommandError::from(anyhow::anyhow!("boom"));
         assert_eq!(error.message, "boom");
-        assert!(error.code.is_none());
         assert_eq!(error.to_string(), "boom");
     }
 
@@ -100,7 +78,6 @@ mod tests {
     fn market_error_message() {
         let error = CommandError::from(wf_market::MarketError::Unauthorized);
         assert_eq!(error.message, "Unauthorized");
-        assert!(error.code.is_none());
     }
 
     #[test]

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ErrorNote, Page, Quoted } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, errorMessage, isStarting, reportError } from "@/lib/bridge";
+import { api, errorMessage, reportError } from "@/lib/bridge";
 import { usePageQuote } from "@/lib/quotes";
 import { useAppStore } from "@/stores/app-store";
 import type { Settings } from "@/types";
@@ -18,7 +18,6 @@ export function SettingsPage() {
   const { settings: stored, setSettings: setStored } = useAppStore();
   const [draft, setDraft] = useState<Settings | null>(stored);
   const [saving, setSaving] = useState(false);
-  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,12 +35,7 @@ export function SettingsPage() {
         const next = await api.settingsGet();
         setStored(next);
         setDraft(next);
-        setStarting(false);
       } catch (error) {
-        if (isStarting(error)) {
-          setStarting(true);
-          return;
-        }
         setError(errorMessage(error));
       }
     }
@@ -84,7 +78,7 @@ export function SettingsPage() {
     return (
       <Page title="Settings" description={<Quoted quote={quote} />}>
         {error && <ErrorNote message={error} />}
-        {!starting && !error && <Skeleton className="h-96 w-full" />}
+        {!error && <Skeleton className="h-96 w-full" />}
       </Page>
     );
   }

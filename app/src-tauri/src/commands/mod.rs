@@ -14,12 +14,8 @@ pub use world::WorldStateView;
 
 type Shared<'a> = State<'a, AppStateCell>;
 
-fn ready(cell: &AppStateCell) -> CommandResult<Arc<AppState>> {
-    if let Some(state) = cell.get() {
-        return Ok(Arc::clone(state));
-    }
-    tracing::debug!("Command arrived before app state was published");
-    Err(CommandError::starting())
+async fn ready(cell: &AppStateCell) -> CommandResult<Arc<AppState>> {
+    cell.wait().await.clone().map_err(CommandError::from)
 }
 
 fn missing_inventory() -> CommandError {

@@ -27,7 +27,6 @@ export function useCommand<K extends CommandKey>(
   useListen(events.inventoryUpdated, state.reload);
   useListen(events.pricesUpdated, state.reload);
   useListen(events.rivenDataUpdated, state.reload);
-  useListen(events.appReady, state.reload);
 
   return state;
 }

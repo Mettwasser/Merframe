@@ -33,5 +33,4 @@ export interface GameStatus {
 
 export interface CommandError {
   message: string;
-  code: string | null;
 }

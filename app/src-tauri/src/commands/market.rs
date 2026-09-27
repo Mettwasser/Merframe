@@ -73,7 +73,7 @@ pub async fn market_login<R: Runtime>(
     email: String,
     password: String,
 ) -> CommandResult<MarketAccount> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let token = state.market().login(&email, &password).await?;
     *write(&state.market) = Arc::new(
         wf_market::Client::new(state.http.clone(), Platform::Pc).with_token(token.clone()),
@@ -101,7 +101,7 @@ pub async fn market_login<R: Runtime>(
 
 #[tauri::command]
 pub async fn market_logout<R: Runtime>(app: AppHandle<R>, state: Shared<'_>) -> CommandResult<()> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     settings::set_token(&app, None)?;
     settings::set_account(&app, None)?;
     *write(&state.market) = Arc::new(wf_market::Client::new(state.http.clone(), Platform::Pc));
@@ -116,7 +116,7 @@ pub async fn market_logout<R: Runtime>(app: AppHandle<R>, state: Shared<'_>) -> 
 
 #[tauri::command]
 pub async fn market_my_orders(state: Shared<'_>) -> CommandResult<Vec<OrderRow>> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let orders = state.market().orders_my().await?;
     let rows = market::order_rows(&state, &orders)
         .await
@@ -131,7 +131,7 @@ pub async fn market_post_order<R: Runtime>(
     state: Shared<'_>,
     order: NewOrder,
 ) -> CommandResult<Order> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let body = CreateOrderRequest {
         item_id: order.item_id,
         order_type: order.order_type,
@@ -172,7 +172,7 @@ pub async fn market_update_order(
     id: String,
     patch: OrderPatch,
 ) -> CommandResult<Order> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let body = UpdateOrderRequest {
         platinum: patch.platinum,
         quantity: patch.quantity,
@@ -183,19 +183,19 @@ pub async fn market_update_order(
 
 #[tauri::command]
 pub async fn market_close_order(state: Shared<'_>, id: String, quantity: u32) -> CommandResult<()> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(state.market().close_order(&id, quantity).await?)
 }
 
 #[tauri::command]
 pub async fn market_delete_order(state: Shared<'_>, id: String) -> CommandResult<Order> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(state.market().delete_order(&id).await?)
 }
 
 #[tauri::command]
 pub async fn market_presence(state: Shared<'_>) -> CommandResult<Presence> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(*read(&state.market_presence))
 }
 
@@ -205,7 +205,7 @@ pub async fn market_set_presence(
     status: Option<UserStatus>,
     auto: bool,
 ) -> CommandResult<Presence> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let presence = Presence { status, auto };
     *write(&state.market_presence) = presence;
     state.market_presence_wake.notify_one();
@@ -214,14 +214,14 @@ pub async fn market_set_presence(
 
 #[tauri::command]
 pub async fn market_activity(state: Shared<'_>) -> CommandResult<()> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     *lock(&state.market_activity) = Some(Instant::now());
     Ok(())
 }
 
 #[tauri::command]
 pub async fn market_remove_all(state: Shared<'_>) -> CommandResult<u32> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let client = state.market();
     let orders = client.orders_my().await?;
     let mut closed = 0;
@@ -242,7 +242,7 @@ pub async fn market_remove_all(state: Shared<'_>) -> CommandResult<u32> {
 
 #[tauri::command]
 pub async fn market_fix_orders(state: Shared<'_>, id: Option<String>) -> CommandResult<u32> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let client = state.market();
     let orders = client.orders_my().await?;
     let rows = market::order_rows(&state, &orders)
@@ -282,7 +282,7 @@ pub async fn market_fix_orders(state: Shared<'_>, id: Option<String>) -> Command
 
 #[tauri::command]
 pub async fn market_set_visibility(state: Shared<'_>, visible: bool) -> CommandResult<u32> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(state
         .market()
         .set_all_orders_visibility(visible)
@@ -292,7 +292,7 @@ pub async fn market_set_visibility(state: Shared<'_>, visible: bool) -> CommandR
 
 #[tauri::command]
 pub async fn market_items(state: Shared<'_>) -> CommandResult<Vec<MarketItem>> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let table = market::item_table(&state)
         .await
         .ok_or_else(unlisted_items)?;
@@ -321,7 +321,7 @@ pub async fn market_items(state: Shared<'_>) -> CommandResult<Vec<MarketItem>> {
 
 #[tauri::command]
 pub async fn market_item_orders(state: Shared<'_>, slug: String) -> CommandResult<ItemListings> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let reach = read(&state.settings).trader_reach();
     Ok(state.market().item_listings(&slug, &reach).await?)
 }
@@ -332,7 +332,7 @@ pub async fn market_post_riven(
     item_id: String,
     choices: ListingChoices,
 ) -> CommandResult<String> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let payload = {
         let core = lock(&state.core);
         let tab = core.rivens_tab().ok_or_else(missing_inventory)?;
@@ -350,7 +350,7 @@ pub async fn market_post_riven(
 
 #[tauri::command]
 pub async fn market_my_auctions(state: Shared<'_>) -> CommandResult<Vec<Auction>> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let slug = read(&state.status)
         .market_account
         .as_ref()
@@ -367,7 +367,7 @@ pub async fn market_update_auction(
     id: String,
     patch: AuctionPatch,
 ) -> CommandResult<Auction> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     let body = UpdateAuctionRequest {
         buyout_price: patch.buyout_price,
         starting_price: patch.starting_price,
@@ -379,12 +379,12 @@ pub async fn market_update_auction(
 
 #[tauri::command]
 pub async fn market_close_auction(state: Shared<'_>, id: String) -> CommandResult<Auction> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(state.market().close_auction(&id).await?)
 }
 
 #[tauri::command]
 pub async fn market_set_auctions_visibility(state: Shared<'_>, visible: bool) -> CommandResult<()> {
-    let state = ready(&state)?;
+    let state = ready(&state).await?;
     Ok(state.market().set_auctions_visibility(visible).await?)
 }

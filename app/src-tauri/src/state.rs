@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime};
-use tokio::sync::{Mutex as AsyncMutex, Notify};
+use tokio::sync::{Mutex as AsyncMutex, Notify, SetOnce};
 use wf_core::{Catalog, Core, PriceCache, PriceSource, Store};
 use wf_data::load_or_fetch;
 use wf_market::{Client, Platform, PriceTable};
@@ -111,7 +111,9 @@ pub struct QueueSession {
     pub clients: Option<wf_scan::HttpClients>,
 }
 
-pub type AppStateCell = OnceLock<Arc<AppState>>;
+pub type Startup = std::result::Result<Arc<AppState>, String>;
+
+pub type AppStateCell = SetOnce<Startup>;
 
 pub struct AppState {
     pub core: Mutex<Core>,
