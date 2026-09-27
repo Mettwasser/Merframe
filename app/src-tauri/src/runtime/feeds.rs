@@ -13,6 +13,7 @@ use super::{RIVEN_DATA_KEY, STATUS_UPDATED, dispatch, emit};
 use crate::state::{AppState, lock, read, write};
 
 const PRICE_RETRY: Duration = Duration::from_secs(60);
+const PRICE_INTERVAL: Duration = Duration::from_mins(15);
 
 pub(super) async fn world_state_task<R: Runtime>(app: AppHandle<R>, state: Arc<AppState>) {
     let mut fetched_at: Option<Instant> = None;
@@ -58,9 +59,8 @@ pub(super) async fn price_task<R: Runtime>(app: AppHandle<R>, state: Arc<AppStat
     let mut checked_at: Option<Instant> = None;
     let mut rivens_checked_at: Option<Instant> = None;
     loop {
-        let interval = read(&state.settings).price_interval();
-        let mut wait = interval;
-        if checked_at.is_none_or(|at| at.elapsed() >= interval) {
+        let mut wait = PRICE_INTERVAL;
+        if checked_at.is_none_or(|at| at.elapsed() >= PRICE_INTERVAL) {
             match load_price_table(&app, &state, &mut client).await {
                 Ok(_) => checked_at = Some(Instant::now()),
                 Err(error) => {

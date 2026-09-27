@@ -53,7 +53,6 @@ export interface Settings {
   discord_fissure_alerts: boolean;
   discord_timer_alerts: boolean;
   notification_only_background: boolean;
-  price_ttl_minutes: number;
   world_state_interval_minutes: number;
   market_poll_minutes: number;
   market_auto_close: boolean;

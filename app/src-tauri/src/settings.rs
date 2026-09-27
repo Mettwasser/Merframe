@@ -89,7 +89,6 @@ pub struct DiscordSettings {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MarketSettings {
-    pub price_ttl_minutes: i64,
     pub market_poll_minutes: u32,
     pub market_auto_close: bool,
     pub market_offline_after_last_trade: bool,
@@ -184,7 +183,6 @@ impl Default for DiscordSettings {
 impl Default for MarketSettings {
     fn default() -> Self {
         Self {
-            price_ttl_minutes: 15,
             market_poll_minutes: 5,
             market_auto_close: false,
             market_offline_after_last_trade: false,
@@ -266,11 +264,6 @@ impl Settings {
     pub fn world_state_interval(&self) -> Duration {
         let minutes = self.world_state_interval_minutes.clamp(5, 10);
         Duration::from_secs(u64::from(minutes) * 60)
-    }
-
-    pub fn price_interval(&self) -> Duration {
-        let minutes = self.market.price_ttl_minutes.clamp(5, 120);
-        Duration::from_secs(minutes.unsigned_abs() * 60)
     }
 
     pub fn market_poll_interval(&self) -> Duration {
@@ -429,7 +422,6 @@ mod tests {
         assert_eq!(settings.discord.discord_webhook, None);
         assert_eq!(settings.discord.discord_message_template, DISCORD_TEMPLATE);
         assert!(settings.notifications.notification_only_background);
-        assert_eq!(settings.market.price_ttl_minutes, 15);
         assert_eq!(settings.world_state_interval_minutes, 5);
         assert_eq!(settings.market.market_poll_minutes, 5);
         assert!(!settings.market.market_auto_close);
@@ -499,7 +491,7 @@ mod tests {
                 "windows_notifications_enabled":false,"sound_notifications_enabled":true,
                 "discord_notifications_enabled":true,"discord_webhook":"https://discord.example/hook",
                 "discord_message_template":"{tenno} says hi",
-                "notification_only_background":false,"price_ttl_minutes":30,
+                "notification_only_background":false,
                 "world_state_interval_minutes":7,"market_poll_minutes":10,"market_auto_close":true,
                 "take_rank_into_account":false,"include_founders_items":false,"include_forma_ranks":false,
                 "show_full_inventory":true,"stats_tab_enabled":false,"overlays_enabled":true,
@@ -522,7 +514,6 @@ mod tests {
             Some("https://discord.example/hook")
         );
         assert_eq!(stored.discord.discord_message_template, "{tenno} says hi");
-        assert_eq!(stored.market.price_ttl_minutes, 30);
         assert_eq!(stored.market.market_poll_minutes, 10);
         assert!(stored.market.market_auto_close);
         assert!(!stored.market.take_rank_into_account);
@@ -571,7 +562,7 @@ mod tests {
         assert!(saved.get("notifications").is_none());
         assert!(saved.get("overlays").is_none());
         assert_eq!(saved["overlay_riven"], false);
-        assert_eq!(saved["price_ttl_minutes"], 30);
+        assert_eq!(saved["market_poll_minutes"], 10);
     }
 
     #[test]
@@ -595,7 +586,7 @@ mod tests {
 
     #[test]
     fn pre_overlay_document() {
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert!(stored.overlays.overlays_enabled);
         assert!(stored.overlays.shown.overlay_relic_reward);
         assert!(stored.overlays.shown.overlay_relic_recommendation);
@@ -605,7 +596,7 @@ mod tests {
 
     #[test]
     fn pre_placement_document() {
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(
             stored.overlays.placements.overlay_relic_reward_placement,
             OverlayPlacement::Centre
@@ -675,7 +666,7 @@ mod tests {
 
     #[test]
     fn only_while_game_active_default() {
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert!(stored.overlays.overlay_only_while_game_active);
 
         let off: Settings =
@@ -710,7 +701,7 @@ mod tests {
         assert!(!settings.force_log_file);
         assert_eq!(settings.log_selection(), wf_log::Selection::Auto);
 
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(stored.log_selection(), wf_log::Selection::Auto);
 
         let forced: Settings = serde_json::from_str(r#"{"force_log_file":true}"#).unwrap();
@@ -729,7 +720,7 @@ mod tests {
                 .contains("{tenno}")
         );
 
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(stored.discord.discord_message_template, DISCORD_TEMPLATE);
 
         let chosen: Settings =
@@ -740,7 +731,7 @@ mod tests {
     #[test]
     fn auto_close_opt_in() {
         assert!(!Settings::default().market.market_auto_close);
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert!(!stored.market.market_auto_close);
         let enabled: Settings = serde_json::from_str(r#"{"market_auto_close":true}"#).unwrap();
         assert!(enabled.market.market_auto_close);
@@ -748,8 +739,7 @@ mod tests {
 
     #[test]
     fn partial_document() {
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":30}"#).unwrap();
-        assert_eq!(stored.market.price_ttl_minutes, 30);
+        let stored: Settings = serde_json::from_str(r#"{"market_poll_minutes":10}"#).unwrap();
         assert!(stored.notifications.windows_notifications_enabled);
         assert!(stored.inventory.stats_tab_enabled);
         assert_eq!(stored.discord.discord_message_template, DISCORD_TEMPLATE);
@@ -758,46 +748,15 @@ mod tests {
     #[test]
     fn show_full_inventory_default() {
         assert!(!Settings::default().inventory.show_full_inventory);
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert!(!stored.inventory.show_full_inventory);
         let asked: Settings = serde_json::from_str(r#"{"show_full_inventory":true}"#).unwrap();
         assert!(asked.inventory.show_full_inventory);
     }
 
     #[test]
-    fn price_ttl_default() {
-        let settings = Settings::default();
-        assert_eq!(settings.market.price_ttl_minutes, 15);
-        assert_eq!(settings.price_interval().as_secs(), 900);
-
-        let stored: Settings = serde_json::from_str(r#"{"market_poll_minutes":5}"#).unwrap();
-        assert_eq!(stored.market.price_ttl_minutes, 15);
-    }
-
-    #[test]
-    fn price_interval_clamp() {
-        let interval = |minutes: i64| {
-            Settings {
-                market: MarketSettings {
-                    price_ttl_minutes: minutes,
-                    ..MarketSettings::default()
-                },
-                ..Settings::default()
-            }
-            .price_interval()
-        };
-        assert_eq!(interval(-30), Duration::from_secs(300));
-        assert_eq!(interval(0), Duration::from_secs(300));
-        assert_eq!(interval(4), Duration::from_secs(300));
-        assert_eq!(interval(5), Duration::from_secs(300));
-        assert_eq!(interval(60).as_secs(), 3600);
-        assert_eq!(interval(120).as_secs(), 7200);
-        assert_eq!(interval(600).as_secs(), 7200);
-    }
-
-    #[test]
     fn world_state_interval_default() {
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(stored.world_state_interval_minutes, 5);
         assert_eq!(stored.world_state_interval(), Duration::from_secs(300));
     }
@@ -841,7 +800,7 @@ mod tests {
         assert_eq!(interval(15).as_secs(), 900);
         assert_eq!(interval(600).as_secs(), 3600);
 
-        let stored: Settings = serde_json::from_str(r#"{"price_ttl_minutes":15}"#).unwrap();
+        let stored: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(stored.market.market_poll_minutes, 5);
     }
 

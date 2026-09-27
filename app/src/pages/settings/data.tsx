@@ -107,15 +107,6 @@ export function PricesAndData({
       <div className="grid gap-x-8 gap-y-6 @3xl:grid-cols-2">
         <div className="flex flex-col gap-4">
           <MinutesSlider
-            id="ttl"
-            label="Price refresh"
-            value={draft.price_ttl_minutes}
-            min={5}
-            max={120}
-            step={5}
-            onChange={(minutes) => patch({ price_ttl_minutes: minutes })}
-          />
-          <MinutesSlider
             id="market-poll"
             label="warframe.market refresh"
             value={draft.market_poll_minutes}
@@ -136,29 +127,6 @@ export function PricesAndData({
               patch({ world_state_interval_minutes: minutes })
             }
           />
-        </div>
-        <div className="flex flex-col gap-4">
-          <SwitchRow
-            checked={draft.market_auto_close}
-            onChange={(checked) => patch({ market_auto_close: checked })}
-            hint="A traded item marks its sell order sold, a traded riven closes its auction."
-          >
-            Close the matching listing when a trade completes
-          </SwitchRow>
-          <CheckboxRow
-            checked={draft.take_rank_into_account}
-            onChange={(checked) => patch({ take_rank_into_account: checked })}
-            hint="A sell order warns when you own fewer copies than it offers. With this on, only mods at the listed rank count."
-          >
-            Take the mod rank into account for the missing items check
-          </CheckboxRow>
-          <CheckboxRow
-            checked={draft.show_full_inventory}
-            onChange={(checked) => patch({ show_full_inventory: checked })}
-            hint="Otherwise a tab stops at 300 rows until you ask for the rest."
-          >
-            Show every inventory row
-          </CheckboxRow>
           <div className="grid gap-3 @sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="trader-status">Trader order</Label>
@@ -204,6 +172,29 @@ export function PricesAndData({
               </Select>
             </div>
           </div>
+        </div>
+        <div className="flex flex-col gap-4">
+          <SwitchRow
+            checked={draft.market_auto_close}
+            onChange={(checked) => patch({ market_auto_close: checked })}
+            hint="A traded item marks its sell order sold, a traded riven closes its auction."
+          >
+            Close the matching listing when a trade completes
+          </SwitchRow>
+          <CheckboxRow
+            checked={draft.take_rank_into_account}
+            onChange={(checked) => patch({ take_rank_into_account: checked })}
+            hint="A sell order warns when you own fewer copies than it offers. With this on, only mods at the listed rank count."
+          >
+            Take the mod rank into account for the missing items check
+          </CheckboxRow>
+          <CheckboxRow
+            checked={draft.show_full_inventory}
+            onChange={(checked) => patch({ show_full_inventory: checked })}
+            hint="Otherwise a tab stops at 300 rows until you ask for the rest."
+          >
+            Show every inventory row
+          </CheckboxRow>
         </div>
         <div className="flex flex-col gap-2 @3xl:col-span-2">
           <span className="text-sm font-medium">EE.log</span>
