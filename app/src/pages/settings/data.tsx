@@ -262,6 +262,11 @@ export function PricesAndData({
               ? `Price table checked ${dateTime(status.price_table_at)}`
               : "Price table not fetched yet"}
           </Hint>
+          <Hint>
+            Prime parts and set prices are re-checked every 30 minutes, other
+            items with orders every 4 hours and the rest daily. Trade volumes
+            and the 90-day history refresh once a day.
+          </Hint>
         </div>
       </div>
     </Section>
