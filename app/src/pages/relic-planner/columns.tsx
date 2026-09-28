@@ -188,7 +188,7 @@ export function plannerColumns(
       accessorFn: (row) => row.perTrace ?? 0,
       cell: ({ row }) => (
         <span className="flex flex-col">
-          <span className="flex items-center gap-0.5">
+          <span className="flex items-center justify-end gap-0.5">
             {row.original.perTrace === null
               ? "-"
               : row.original.perTrace.toFixed(2)}
