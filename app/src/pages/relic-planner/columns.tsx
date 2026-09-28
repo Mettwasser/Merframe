@@ -153,7 +153,7 @@ export function plannerColumns(
       meta: { numeric: true, label: "Expected plat" },
       accessorFn: (row) => row.value.expected_plat,
       cell: ({ row }) => (
-        <span className="flex flex-col">
+        <span className="flex flex-col justify-end">
           <span className="text-primary flex items-center gap-0.5 font-bold">
             {plat(row.original.value.expected_plat)}
             <GameIcon name="platinum" size={16} alt="Platinum" />
@@ -206,7 +206,7 @@ export function plannerColumns(
       meta: { numeric: true, label: "Ducats per trace" },
       accessorFn: (row) => row.ducatsPerTrace ?? 0,
       cell: ({ row }) => (
-        <span className="flex flex-col">
+        <span className="flex flex-col justify-end ">
           <span>
             {row.original.ducatsPerTrace === null
               ? "-"
@@ -230,7 +230,7 @@ export function plannerColumns(
       accessorFn: (row) => row.plan.intact_to_radiant.plat,
       cell: ({ row }) => (
         <span className="flex flex-col">
-          <span className="flex items-center gap-0.5">
+          <span className="flex items-center gap-0.5 justify-end ">
             {plat(row.original.plan.intact_to_radiant.plat)}
             <GameIcon name="platinum" size={16} alt="Platinum" />
           </span>
