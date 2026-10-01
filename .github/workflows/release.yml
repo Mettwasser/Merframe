@@ -115,7 +115,14 @@ jobs:
         with:
           path: bundles
           merge-multiple: true
-      - run: .github/scripts/latest-json.sh ${{ needs.version.outputs.version }} > bundles/latest.json
+      - run: |
+          for file in bundles/*/Merframe_"$VERSION"_*.{AppImage,exe,msi}{,.sig}; do
+            mv "$file" "${file/_$VERSION/}"
+          done
+          .github/scripts/latest-json.sh "$VERSION" > bundles/latest.json
+          find bundles -name '*.sig' -delete
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.version.outputs.version }}
