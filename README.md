@@ -101,9 +101,9 @@ Services Merframe talks to:
 Merframe reads out what the game stores in its own space on your computer - the game's memory.
 This is the same approach AlecaFrame uses (via Overwolf) for inventory data.
 
-Merframe goes a bit further and takes this approach for all data: Your current inventory, displayed riven, riven rolls, relic fissure & relic rewards.
+Merframe goes a bit further and takes this approach for all data: Your current inventory, displayed riven, riven rolls, relic fissure & relic rewards. AlecaFrame uses OCR for this, which is arguably less risky.
 
-DE has so far given the okay for this, but they can not give a clear recommendation for third-party tools.
+DE has so far tolerated memory reading, but they can not give a clear okay or recommendation for third-party tools.
 As with all user tools: Use at your own risk.
 
 ## On memory (Linux)
