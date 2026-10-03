@@ -23,7 +23,7 @@ You can download the latest release on the [releases page](https://github.com/ak
 
 Bug reports, feature requests, and contributions are welcome.
 
-![Preview of the UI](.github/Preview.jpeg)
+![Preview of the Merframe UI](.github/Preview.png)
 
 ## Contents
 
