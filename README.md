@@ -1,19 +1,25 @@
 
 ![Merframe header image](.github/Merframe.png)
 
-A companion app for Warframe on Linux and Windows.
-Displays information about:
- - Inventory
+Merframe is an open-source alternative to AlecaFrame that runs natively on Linux (Proton) and Windows.
+
+Merframe displays information about:
+ - World timers
  - Foundry
- - Mastery
+ - Inventory
  - Relics
  - Rivens
+ - Mastery
+ - Resources
  - warframe.market trading
- - World timers
+ - warframe.market analytics
+ - Stats
 
 In-game overlays are available on Windows, X11 and XWayland (This includes Wayland since Proton uses XWayland).
 
 Big Warframe script updates (usually big content drops) will break the overlays until Merframe is updated as well. Changes in data structures from content we get from Warframe Community Developers (WFCD) may break the app. Please create an issue if either of these go unnoticed for a day.
+
+You can download the latest release on the [releases page](https://github.com/akshualy/Merframe/releases), or on the [official Merframe website](https://yareli.net/merframe).
 
 Bug reports, feature requests, and contributions are welcome.
 
@@ -42,6 +48,7 @@ Releases are provided as an `.exe` or `.msi` installer (Windows), `.deb`, `.rpm`
 Windows may warn you on install that the application is not known. This is normal, and I'm not willing to pay Microsoft to make it go away.
 
 `AppImage` is the preferred way of running the application on Linux.
+Due to how GitHub serves files, you must set the execution permission yourself: `chmod +x ./Merframe_amd64.AppImage`.
 
 On Arch, you may install the `.pkg.tar.zst` with `pacman -U`, or build it from source with `makepkg` in `packaging/arch/`.
 
