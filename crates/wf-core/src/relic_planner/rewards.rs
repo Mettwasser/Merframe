@@ -4,9 +4,9 @@ use serde::Serialize;
 use wf_data::{Rarity, RelicReward};
 use wf_inventory::Inventory;
 
-use crate::catalog::{Catalog, Stock, component_image, display_name_from_path, part_name};
+use crate::catalog::{Catalog, Stock, display_name_from_path};
 use crate::favourites::Favourites;
-use crate::prices::market_slug;
+use crate::identity::market_slug;
 use crate::view::View;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -68,17 +68,20 @@ pub(super) fn reward_breakdown(
 ) -> RewardBreakdown {
     let View {
         catalog,
+        items,
         prices,
         favourites,
         ..
     } = *view;
-    let component = catalog.component_for_reward(&reward.item_unique_name);
+    let component = catalog
+        .component_for_reward(&reward.item_unique_name)
+        .and_then(|(item, component)| Some((item, component, items.part(item, component)?)));
     let favourite = favourite_reward(catalog, favourites, &reward.item_unique_name);
     let owned = stock.count(&reward.item_unique_name);
     let (name, image_name, ducats, ownership) = match component {
-        Some((item, component)) => (
-            part_name(item, component),
-            component_image(item, component),
+        Some((item, component, part)) => (
+            part.name.clone(),
+            part.image_name.clone(),
             component.ducats,
             RewardOwnership {
                 owned,

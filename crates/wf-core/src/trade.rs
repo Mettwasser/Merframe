@@ -99,6 +99,7 @@ pub fn traded_set(catalog: &Catalog, items: &[TradeItem]) -> Option<TradeItem> {
     if rest.is_empty() {
         return None;
     }
+    let first = name_key(&first.name);
     let (set, _) = catalog
         .items()
         .flat_map(|item| {
@@ -107,16 +108,16 @@ pub fn traded_set(catalog: &Catalog, items: &[TradeItem]) -> Option<TradeItem> {
                 .flatten()
                 .map(move |part| (item, part))
         })
-        .find(|(item, part)| same_part(&first.name, &part_name(item, part)))?;
+        .find(|(item, part)| name_key(&part_name(item, part)) == first)?;
     let parts: Vec<String> = set
         .components
         .iter()
         .flatten()
-        .map(|part| part_name(set, part))
+        .map(|part| name_key(&part_name(set, part)))
         .collect();
     if !items
         .iter()
-        .all(|item| parts.iter().any(|part| same_part(&item.name, part)))
+        .all(|item| parts.contains(&name_key(&item.name)))
     {
         return None;
     }
@@ -132,18 +133,19 @@ pub fn traded_set(catalog: &Catalog, items: &[TradeItem]) -> Option<TradeItem> {
 }
 
 pub fn same_part(traded: &str, catalog: &str) -> bool {
-    without_blueprint(traded).eq_ignore_ascii_case(without_blueprint(catalog))
+    name_key(traded) == name_key(catalog)
 }
 
-fn without_blueprint(name: &str) -> &str {
+pub(crate) fn name_key(name: &str) -> String {
     let name = name.strip_suffix(" Blueprint").unwrap_or(name);
-    if let Some((base, _)) = relic_refinement(name) {
-        return base;
-    }
-    match name.rsplit_once(" (") {
-        Some((base, size)) if size.len() == 2 && size.ends_with(')') => base,
-        _ => name,
-    }
+    let base = match relic_refinement(name) {
+        Some((relic, _)) => relic,
+        None => match name.rsplit_once(" (") {
+            Some((base, size)) if size.len() == 2 && size.ends_with(')') => base,
+            _ => name,
+        },
+    };
+    base.to_ascii_lowercase()
 }
 
 pub fn relic_refinement(name: &str) -> Option<(&str, String)> {

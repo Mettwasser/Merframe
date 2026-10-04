@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashSet;
 
 use serde::Serialize;
@@ -5,11 +6,11 @@ use wf_data::{Component, Item, store_item_to_type};
 use wf_inventory::Inventory;
 
 use crate::catalog::{
-    Catalog, DUCATS_ITEM, Stock, component_image, item_name, names_a_prime, part_identity,
-    part_market_slug, part_name,
+    Catalog, DUCATS_ITEM, Stock, display_name_from_path, names_a_prime, part_identity,
 };
 use crate::favourites::Favourites;
-use crate::prices::{PriceSource, market_slug, set_slug};
+use crate::identity::{ItemRecord, ItemTable, Variant};
+use crate::prices::PriceSource;
 
 use super::missing_parts;
 use super::rewards::{MasteredItems, RewardOwnership, favourite_reward};
@@ -112,25 +113,14 @@ impl<'a> Holdings<'a> {
     }
 }
 
-fn reward_identity(
-    catalog: &Catalog,
+fn reward_identity<'a>(
+    items: &'a ItemTable,
     unique_name: &str,
     parent: Option<(&Item, &Component)>,
-) -> (String, String, Option<u32>, Option<String>) {
-    if let Some((item, component)) = parent {
-        (
-            part_name(item, component),
-            part_market_slug(item, component),
-            component.ducats,
-            component_image(item, component),
-        )
-    } else {
-        let name = item_name(catalog, unique_name);
-        let slug = market_slug(&name);
-        let image_name = catalog
-            .item(unique_name)
-            .and_then(|item| item.image_name.clone());
-        (name, slug, None, image_name)
+) -> Cow<'a, ItemRecord> {
+    match parent.and_then(|(item, component)| items.part(item, component)) {
+        Some(part) => Cow::Borrowed(part),
+        None => items.resolve(unique_name, || display_name_from_path(unique_name)),
     }
 }
 
@@ -151,6 +141,7 @@ fn mark_best(ranked: &mut [Ranked]) {
 pub(crate) fn recommend(
     inventory: Option<&Inventory>,
     catalog: &Catalog,
+    items: &ItemTable,
     prices: &dyn PriceSource,
     favourites: &Favourites,
     rewards: &[String],
@@ -161,13 +152,20 @@ pub(crate) fn recommend(
         .map(|store_item| {
             let unique_name = store_item_to_type(store_item);
             let parent = catalog.component_for_reward(&unique_name);
-            let (name, slug, ducats, image_name) = reward_identity(catalog, &unique_name, parent);
+            let identity = reward_identity(items, &unique_name, parent);
+            let name = identity.name.clone();
             Ranked {
                 store_item: store_item.clone(),
-                image_name,
-                plat: prices.plat(&slug),
-                ducats,
-                set_plat: parent.and_then(|(item, _)| prices.plat(&set_slug(&item.name))),
+                image_name: identity.image_name.clone(),
+                plat: identity
+                    .market_slug
+                    .as_deref()
+                    .and_then(|slug| prices.plat(slug)),
+                ducats: parent.and_then(|(_, component)| component.ducats),
+                set_plat: parent
+                    .and_then(|(item, _)| items.variant(&item.unique_name, Variant::Set))
+                    .and_then(|set| set.market_slug.as_deref())
+                    .and_then(|slug| prices.plat(slug)),
                 ownership: holdings
                     .as_ref()
                     .map(|holdings| holdings.ownership(&unique_name, parent)),
@@ -177,6 +175,7 @@ pub(crate) fn recommend(
                 best: false,
                 components: match parent {
                     Some((item, component)) => set_components(
+                        items,
                         item,
                         &component.unique_name,
                         &name,
@@ -205,6 +204,7 @@ fn is_prime_part(unique_name: &str) -> bool {
 }
 
 fn set_components(
+    items: &ItemTable,
     item: &Item,
     reward_component: &str,
     reward_name: &str,
@@ -219,19 +219,20 @@ fn set_components(
         .unwrap_or_default()
         .iter()
         .filter(|component| is_prime_part(&component.unique_name))
-        .map(|component| {
+        .filter_map(|component| {
+            let part = items.part(item, component)?;
             let owned = stock.map(|stock| stock.count(&component.unique_name));
-            RankedComponent {
+            Some(RankedComponent {
                 unique_name: component.unique_name.clone(),
-                name: part_name(item, component),
-                image_name: component_image(item, component),
+                name: part.name.clone(),
+                image_name: part.image_name.clone(),
                 owned,
                 needed: component.item_count,
                 enough: owned.is_some_and(|owned| owned >= i64::from(component.item_count)),
                 this_reward: component.unique_name == reward_component,
                 favourite: favourites
                     .any([component.unique_name.as_str(), item.unique_name.as_str()]),
-            }
+            })
         })
         .collect()
 }
@@ -255,6 +256,7 @@ mod tests {
         let screen = recommend(
             Some(&inventory),
             &catalog,
+            &ItemTable::build(&catalog),
             &prices(),
             &Favourites::default(),
             &rewards,
@@ -281,6 +283,7 @@ mod tests {
         let screen = recommend(
             Some(&inventory),
             &catalog,
+            &ItemTable::build(&catalog),
             &prices(),
             &Favourites::default(),
             &rewards,
@@ -305,6 +308,7 @@ mod tests {
         let ranked = recommend(
             Some(&inventory),
             &catalog,
+            &ItemTable::build(&catalog),
             &prices(),
             &Favourites::default(),
             &rewards,
@@ -347,7 +351,15 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let ranked = recommend(Some(&inventory), &catalog, &prices(), &starred, &rewards).ranked;
+        let ranked = recommend(
+            Some(&inventory),
+            &catalog,
+            &ItemTable::build(&catalog),
+            &prices(),
+            &starred,
+            &rewards,
+        )
+        .ranked;
         assert!(ranked[0].favourite, "the part itself is starred");
         assert!(
             ranked[1].favourite,
@@ -366,6 +378,7 @@ mod tests {
         recommend(
             Some(inventory),
             &fixtures::catalog(),
+            &ItemTable::build(&fixtures::catalog()),
             &prices(),
             &Favourites::default(),
             &rewards,
@@ -503,6 +516,7 @@ mod tests {
         let ranked = recommend(
             Some(&fixtures::inventory()),
             &fixtures::catalog(),
+            &ItemTable::build(&fixtures::catalog()),
             &prices(),
             &starred,
             &[TRINITY_SYSTEMS_REWARD.to_owned()],
@@ -545,6 +559,7 @@ mod tests {
         let screen = recommend(
             None,
             &fixtures::catalog(),
+            &ItemTable::build(&fixtures::catalog()),
             &prices(),
             &Favourites::default(),
             &[TRINITY_SYSTEMS_REWARD.to_owned(), FORMA_REWARD.to_owned()],
@@ -575,6 +590,7 @@ mod tests {
         let ranked = recommend(
             Some(&inventory),
             &catalog,
+            &ItemTable::build(&catalog),
             &unpriced,
             &Favourites::default(),
             &rewards,

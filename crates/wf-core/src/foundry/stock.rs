@@ -4,6 +4,7 @@ use wf_data::Component;
 use wf_inventory::{CountedItem, Inventory};
 
 use crate::catalog::{FORMA_BLUEPRINT, FORMA_ITEM, builds_from_its_own_blueprint};
+use crate::identity::ambassador_blueprint;
 
 fn first_count(items: &[CountedItem], item_type: &str) -> Option<i64> {
     items
@@ -45,16 +46,6 @@ fn held_count(inventory: &Inventory, unique_name: &str) -> i64 {
         .unwrap_or_default();
     }
     0
-}
-
-fn ambassador_blueprint(unique_name: &str) -> Option<String> {
-    if !unique_name.contains("CrpArSniper") || unique_name.contains("Blueprint") {
-        return None;
-    }
-    Some(format!(
-        "{}Blueprint",
-        unique_name.replace("CrpArSniper", "Ambassador")
-    ))
 }
 
 pub(super) fn component_stock(inventory: &Inventory, unique_name: &str, name: &str) -> i64 {

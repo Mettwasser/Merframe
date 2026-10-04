@@ -4,6 +4,7 @@ use serde::Serialize;
 use wf_market::{Polarity, RivenAttribute, RivenData as RivenTable};
 
 use crate::catalog::Catalog;
+use crate::identity::ItemTable;
 
 mod dialog;
 mod good_roll;
@@ -24,6 +25,7 @@ const RIVEN_MOD_SUFFIX: &str = " Riven Mod";
 
 pub(crate) struct Grader<'a> {
     catalog: &'a Catalog,
+    items: &'a ItemTable,
     by_combo: HashMap<String, &'a RivenAttribute>,
     table: Option<&'a RivenTable>,
 }
@@ -31,6 +33,7 @@ pub(crate) struct Grader<'a> {
 impl<'a> Grader<'a> {
     pub(crate) fn new(
         catalog: &'a Catalog,
+        items: &'a ItemTable,
         attributes: &'a [RivenAttribute],
         table: Option<&'a RivenTable>,
     ) -> Self {
@@ -49,6 +52,7 @@ impl<'a> Grader<'a> {
             .collect();
         Self {
             catalog,
+            items,
             by_combo,
             table,
         }
@@ -251,19 +255,27 @@ pub(crate) mod support {
 
     pub(crate) struct Fixture {
         pub(crate) catalog: Catalog,
+        pub(crate) items: ItemTable,
         pub(crate) attributes: Vec<RivenAttribute>,
         pub(crate) table: RivenTable,
     }
 
     impl Fixture {
         pub(crate) fn grader(&self) -> Grader<'_> {
-            Grader::new(&self.catalog, &self.attributes, Some(&self.table))
+            Grader::new(
+                &self.catalog,
+                &self.items,
+                &self.attributes,
+                Some(&self.table),
+            )
         }
     }
 
     pub(crate) fn fixture() -> Fixture {
+        let catalog = riven_catalog();
         Fixture {
-            catalog: riven_catalog(),
+            items: ItemTable::build(&catalog),
+            catalog,
             attributes: attributes(),
             table: riven_table(),
         }

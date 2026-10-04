@@ -8,7 +8,8 @@ use super::{
     Acquisition, CategoryTotals, Level, MasteryComponent, MasteryGroup, MasteryItem, MasteryOptions,
 };
 use crate::catalog::{Catalog, REFINEMENTS, Stock, component_image, part_identity, part_name};
-use crate::prices::{PriceSource, market_slug};
+use crate::identity::market_slug;
+use crate::prices::PriceSource;
 use crate::view::View;
 
 pub(super) const FOUNDERS_ITEMS: [&str; 3] = [
@@ -318,6 +319,7 @@ mod tests {
     use super::*;
     use crate::catalog::fixtures;
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
     use crate::listings::MarketListings;
     use crate::mastery::support::{
         entries, excluding_founders, founder_inventory, mutated, prices,
@@ -391,6 +393,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -420,6 +423,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),

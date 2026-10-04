@@ -7,6 +7,7 @@ mod export;
 mod facade;
 mod favourites;
 mod foundry;
+mod identity;
 mod inventory_view;
 mod listings;
 mod market_stock;
@@ -34,9 +35,10 @@ pub use foundry::{
     CraftDetails, CraftNode, CraftSummary, FoundryComponent, FoundryItem, FoundryTab, Helminth,
     MasteryGate, NeededItem, NodeDrop, OwnedRelic, PendingBuild, Prime, Progress, WorldTimer,
 };
+pub use identity::{ItemRecord, ItemTable, market_icon, market_name};
 pub use inventory_view::{
     InventoryTab, ItemStatus, MiscRow, ModHolder, ModRow, PartRow, PartSet, RelicRow,
-    SculptureStars, SetComponent, SetRow, TabTotals, UpgradePrices, market_icon,
+    SculptureStars, SetComponent, SetRow, TabTotals, UpgradePrices,
 };
 pub use listings::{MarketListings, PlacedOrders};
 pub use market_stock::MarketStock;
@@ -44,7 +46,7 @@ pub use mastery::{
     Acquisition, CategoryTotals, Level, LevelUpRoute, MasteryComponent, MasteryGroup, MasteryItem,
     MasteryOptions, MasteryOrdering, MasterySummary, MasteryTab, RouteMember,
 };
-pub use prices::{MarketWindow, PriceCache, PriceQuote, PriceSource, Prices, Turnover, set_slug};
+pub use prices::{MarketWindow, PriceCache, PriceQuote, PriceSource, Prices, Turnover};
 pub use relic_planner::{
     AccountBalance, Best, DEFAULT_SQUAD_SIZE, DropLocation, IntactToRadiant, MissingPart,
     OwnedRefinement, Ownership, PerTrace, Ranked, RankedComponent, RefinementValue, RelicMarket,

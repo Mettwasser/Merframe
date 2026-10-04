@@ -225,6 +225,7 @@ mod tests {
     use super::*;
     use crate::catalog::fixtures;
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
     use crate::listings::MarketListings;
     use crate::mastery::items::{FOUNDERS_ITEMS, unmastered_types};
     use crate::mastery::support::{excluding_founders, founder_inventory, prices};
@@ -237,6 +238,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -265,6 +267,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -282,6 +285,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &starred,
                 listings: &MarketListings::default(),
@@ -319,6 +323,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -334,6 +339,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -352,6 +358,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -368,6 +375,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -385,6 +393,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -403,6 +412,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -413,6 +423,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -463,6 +474,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -473,6 +485,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -490,6 +503,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -518,6 +532,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -537,6 +552,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -554,6 +570,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),
@@ -585,6 +602,7 @@ mod tests {
             &View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),

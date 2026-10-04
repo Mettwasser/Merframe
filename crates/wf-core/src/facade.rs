@@ -17,6 +17,7 @@ use crate::events::{self, AlertSettings, CoreEvent, Engine, ScannedRewards, Scan
 use crate::export::{ExportBundle, export};
 use crate::favourites::Favourites;
 use crate::foundry::{self, FoundryTab};
+use crate::identity::ItemTable;
 use crate::inventory_view::{self, InventoryTab};
 use crate::listings::MarketListings;
 use crate::market_stock::MarketStock;
@@ -54,6 +55,7 @@ pub struct StatsTab {
 pub struct Core {
     store: Store,
     catalog: Catalog,
+    items: ItemTable,
     prices: Arc<dyn PriceSource + Send + Sync>,
     engine: Engine,
     inventory: Option<Inventory>,
@@ -78,6 +80,7 @@ impl Core {
         let favourites = store.favourites()?;
         Ok(Self {
             store,
+            items: ItemTable::build(&catalog),
             catalog,
             prices,
             engine: Engine::new(alerts),
@@ -104,6 +107,10 @@ impl Core {
 
     pub fn set_riven_data(&mut self, data: RivenData) {
         self.riven_data = Some(data);
+    }
+
+    pub fn index_market(&mut self, items: &[wf_market::Item]) -> usize {
+        self.items.index_market(items)
     }
 
     pub fn set_market_listings(&mut self, listings: MarketListings) {
@@ -267,6 +274,7 @@ impl Core {
         Some(View {
             inventory: self.inventory.as_ref()?,
             catalog: &self.catalog,
+            items: &self.items,
             prices: self.prices.as_ref(),
             favourites: &self.favourites,
             listings: &self.listings,
@@ -361,6 +369,7 @@ impl Core {
         relic_planner::recommend(
             self.inventory.as_ref(),
             &self.catalog,
+            &self.items,
             self.prices.as_ref(),
             &self.favourites,
             rewards,
@@ -370,6 +379,7 @@ impl Core {
     fn grader(&self) -> Grader<'_> {
         Grader::new(
             &self.catalog,
+            &self.items,
             &self.riven_attributes,
             self.riven_data.as_ref(),
         )

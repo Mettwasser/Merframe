@@ -4,6 +4,7 @@ use serde::Serialize;
 use wf_data::{Rarity, catch_grade, misc_item_name};
 
 use crate::catalog::{Catalog, VaultStatus, display_name_from_path, part_name, refinement_name};
+use crate::identity::unlisted_upgrade;
 use crate::listings::PlacedOrders;
 use crate::prices::Prices;
 use crate::view::View;
@@ -16,8 +17,6 @@ mod upgrades;
 pub(crate) use misc::misc;
 pub(crate) use parts::{parts, sets};
 pub(crate) use relics::relics;
-pub use upgrades::market_icon;
-use upgrades::upgrade_outside_the_export;
 pub(crate) use upgrades::{arcanes, mods};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -255,7 +254,7 @@ pub(crate) fn catalogued_name(catalog: &Catalog, unique_name: &str) -> Option<St
     if let Some((item, component)) = catalog.component(unique_name) {
         return Some(part_name(item, component));
     }
-    if let Some(upgrade) = upgrade_outside_the_export(unique_name) {
+    if let Some(upgrade) = unlisted_upgrade(unique_name) {
         return Some(upgrade.name.to_owned());
     }
     misc_item_name(unique_name).map(str::to_owned)
@@ -274,6 +273,7 @@ mod tests {
     use super::*;
     use crate::catalog::{fixtures, names_a_prime};
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
     use crate::listings::MarketListings;
     use crate::prices::FixedPrices;
 
@@ -300,6 +300,7 @@ mod tests {
         let view = View {
             inventory: &stocked,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -310,6 +311,7 @@ mod tests {
         let mod_rows = mods(&View {
             inventory: &fixtures::inventory(),
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -330,6 +332,7 @@ mod tests {
         let tab = tab(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -366,6 +369,7 @@ mod tests {
         let plain = tab(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -391,6 +395,7 @@ mod tests {
         let marked = tab(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &starred,
             listings: &no_listings(),
@@ -419,6 +424,7 @@ mod tests {
         let set = sets(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -432,6 +438,7 @@ mod tests {
         let view = View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &starred,
             listings: &no_listings(),

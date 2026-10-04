@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use wf_inventory::{CountedItem, EquipmentItem, Inventory};
 
-use crate::catalog::Catalog;
+use crate::catalog::{Catalog, is_fish};
 
 #[derive(Clone, Copy)]
 pub struct MarketStock<'a> {
@@ -16,10 +16,6 @@ fn counted(items: &[CountedItem], unique_name: &str) -> i64 {
         .filter(|item| item.item_type == unique_name)
         .map(|item| item.item_count)
         .sum()
-}
-
-fn is_fish(unique_name: &str) -> bool {
-    unique_name.contains("/Items/Fish/")
 }
 
 fn refinement_suffix(listed: &str) -> Option<&'static str> {

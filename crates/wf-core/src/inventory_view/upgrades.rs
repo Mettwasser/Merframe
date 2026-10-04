@@ -1,66 +1,14 @@
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use wf_data::{Item, Rarity};
-use wf_inventory::{EquipmentItem, Inventory, RIVEN_MARKER, RivenFingerprint, UpgradeSlot};
+use wf_data::Item;
+use wf_inventory::{EquipmentItem, Inventory, RivenFingerprint, UpgradeSlot};
 
 use super::{ModHolder, ModRow, UpgradePrices, display_name};
 use crate::catalog::{ARCANE_PREFIX, Catalog, display_name_from_path};
-use crate::prices::{PriceSource, market_slug};
+use crate::identity::{ItemKind, Variant, is_riven};
+use crate::prices::PriceSource;
 use crate::view::View;
-
-#[derive(Clone, Copy)]
-pub(super) struct UnlistedUpgrade {
-    unique_name: &'static str,
-    pub(super) name: &'static str,
-    rarity: Rarity,
-    pub(super) market_slug: Option<&'static str>,
-    pub(super) image_name: Option<&'static str>,
-}
-
-const UPGRADES_OUTSIDE_THE_EXPORT: [UnlistedUpgrade; 6] = [
-    UnlistedUpgrade {
-        unique_name: "/Lotus/Upgrades/CosmeticEnhancers/Antiques/AmmoEfficencyDuringUltimate",
-        name: "Zid-An Haras",
-        rarity: Rarity::Rare,
-        market_slug: Some("zid-an-haras"),
-        image_name: None,
-    },
-    UnlistedUpgrade {
-        unique_name: "/Lotus/Upgrades/CosmeticEnhancers/Antiques/HeatStatusProcOnUltimateKill",
-        name: "Zid-An Uskos",
-        rarity: Rarity::Rare,
-        market_slug: Some("zid-an-uskos"),
-        image_name: None,
-    },
-    UnlistedUpgrade {
-        unique_name: "/Lotus/Upgrades/CosmeticEnhancers/Antiques/StatusChanceOnUltimateHit",
-        name: "Zid-An Asheir",
-        rarity: Rarity::Rare,
-        market_slug: Some("zid-an-asheir"),
-        image_name: None,
-    },
-    UnlistedUpgrade {
-        unique_name: "/Lotus/Upgrades/CosmeticEnhancers/Antiques/UltimateInvisibilty",
-        name: "Zid-An Sek-Eel",
-        rarity: Rarity::Rare,
-        market_slug: Some("zid-an-sek-eel"),
-        image_name: None,
-    },
-    UnlistedUpgrade {
-        unique_name: "/Lotus/Upgrades/CosmeticEnhancers/Antiques/VoidSlingsOverguardStrip",
-        name: "Zid-An Osbok",
-        rarity: Rarity::Rare,
-        market_slug: Some("zid-an-osbok"),
-        image_name: None,
-    },
-    UnlistedUpgrade {
-        unique_name: "/Lotus/Upgrades/Mods/Fusers/LegendaryModFuser",
-        name: "Legendary Core",
-        rarity: Rarity::Legendary,
-        market_slug: Some("legendary_fusion_core"),
-        image_name: Some("game/legendary-core.png"),
-    },
-];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum UpgradeKind {
@@ -78,38 +26,6 @@ pub(super) fn upgrade_kind(item_type: &str) -> UpgradeKind {
         return UpgradeKind::Neither;
     }
     UpgradeKind::Mod
-}
-
-fn is_riven(item_type: &str) -> bool {
-    item_type.contains(RIVEN_MARKER)
-}
-
-fn starter_variant(unique_name: &str) -> Option<String> {
-    let (parent, leaf) = unique_name.rsplit_once('/')?;
-    Some(format!("{parent}/Beginner/{leaf}Beginner"))
-}
-
-fn upgrade_item<'a>(catalog: &'a Catalog, unique_name: &str) -> Option<&'a Item> {
-    if let Some(item) = catalog.item(unique_name) {
-        return Some(item);
-    }
-    catalog.item(&starter_variant(unique_name)?)
-}
-
-pub(super) fn upgrade_outside_the_export(unique_name: &str) -> Option<UnlistedUpgrade> {
-    UPGRADES_OUTSIDE_THE_EXPORT
-        .into_iter()
-        .find(|upgrade| upgrade.unique_name == unique_name)
-}
-
-pub fn market_icon(catalog: &Catalog, item: &wf_market::Item) -> Option<String> {
-    catalog.icon_for(&item.game_ref).or_else(|| {
-        UPGRADES_OUTSIDE_THE_EXPORT
-            .into_iter()
-            .find(|upgrade| upgrade.market_slug == Some(item.slug.as_str()))?
-            .image_name
-            .map(str::to_owned)
-    })
 }
 
 pub(crate) fn mods(view: &View) -> Vec<ModRow> {
@@ -244,6 +160,7 @@ fn upgrade_rows(view: &View, wanted: UpgradeKind) -> Vec<ModRow> {
     let View {
         inventory,
         catalog,
+        items,
         prices,
         favourites,
         listings,
@@ -253,41 +170,37 @@ fn upgrade_rows(view: &View, wanted: UpgradeKind) -> Vec<ModRow> {
         .into_iter()
         .filter(|(_, tally)| tally.count > 0)
         .map(|((unique_name, rank), Tally { count, holders })| {
-            let known = upgrade_item(catalog, unique_name);
-            let listed = upgrade_outside_the_export(unique_name);
-            let mut name = match (known, listed) {
-                (Some(item), _) => item.name.clone(),
-                (None, Some(listed)) => listed.name.to_owned(),
-                (None, None) => display_name_from_path(unique_name),
+            let riven = is_riven(unique_name);
+            let record = match items.variant(unique_name, Variant::Veiled) {
+                Some(veiled) => Cow::Borrowed(veiled),
+                None => items.resolve(unique_name, || {
+                    let name = display_name_from_path(unique_name);
+                    if riven {
+                        format!("{name} (Veiled)")
+                    } else {
+                        name
+                    }
+                }),
             };
-            if is_riven(unique_name) {
-                name.push_str(" (Veiled)");
-            }
-            let slug = match listed.and_then(|upgrade| upgrade.market_slug) {
-                Some(slug) => slug.to_owned(),
-                None => prices
-                    .slug_for(unique_name)
-                    .unwrap_or_else(|| market_slug(&name)),
+            let (rarity, max_rank) = match record.kind {
+                ItemKind::Upgrade { rarity, max_rank } => (rarity, max_rank),
+                _ => (None, None),
             };
-            let max_rank = known.map(Item::max_upgrade_rank);
+            let slug = record.market_slug.as_deref().unwrap_or_default();
             ModRow {
                 count,
                 rank,
                 max_rank,
-                prices: upgrade_prices(prices, &slug, rank, max_rank, wanted),
+                prices: upgrade_prices(prices, slug, rank, max_rank, wanted),
                 equipped_in: equipped_holders(catalog, &slots, &holders),
-                image_name: known
-                    .and_then(|item| item.image_name.clone())
-                    .or_else(|| listed.and_then(|upgrade| upgrade.image_name.map(str::to_owned))),
-                rarity: known
-                    .and_then(|item| item.rarity)
-                    .or_else(|| listed.map(|upgrade| upgrade.rarity)),
-                prime: name.contains("Prime"),
+                image_name: record.image_name.clone(),
+                rarity,
+                prime: record.prime,
                 favourite: favourites.contains(unique_name),
-                orders: listings.orders_for(&slug),
+                orders: listings.orders_for(slug),
                 unique_name: unique_name.to_owned(),
-                market_slug: slug,
-                name,
+                market_slug: slug.to_owned(),
+                name: record.name.clone(),
             }
         })
         .collect();
@@ -301,16 +214,20 @@ mod tests {
     use super::*;
     use crate::catalog::fixtures;
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
     use crate::prices::FixedPrices;
+    use wf_data::Rarity;
 
     #[test]
     fn every_upgrade_resolves() {
         let inventory = fixtures::inventory();
         let catalog = fixtures::upgrade_catalog();
+        let items = ItemTable::build(&catalog);
         let rows = [
             mods(&View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &no_listings(),
@@ -318,6 +235,7 @@ mod tests {
             arcanes(&View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &no_listings(),
@@ -326,10 +244,7 @@ mod tests {
         .concat();
         let unresolved: Vec<&str> = rows
             .iter()
-            .filter(|row| {
-                upgrade_item(&catalog, &row.unique_name).is_none()
-                    && upgrade_outside_the_export(&row.unique_name).is_none()
-            })
+            .filter(|row| items.get(&row.unique_name).is_none())
             .map(|row| row.unique_name.as_str())
             .collect();
         assert!(unresolved.is_empty(), "{unresolved:?}");
@@ -343,6 +258,7 @@ mod tests {
         let rows = mods(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -362,6 +278,7 @@ mod tests {
         let rows = mods(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -394,6 +311,7 @@ mod tests {
         let view = View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -431,6 +349,7 @@ mod tests {
         let view = View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices,
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -478,17 +397,18 @@ mod tests {
     fn listed_slug_wins_over_the_derived_one() {
         let inventory = fixtures::inventory();
         let catalog = fixtures::upgrade_catalog();
-        let prices = FixedPrices::new([
-            ("arcane_energize", 12.0),
-            ("arcane\u{2019}energize", 30.0),
-        ])
-        .with_slugs([(
-            "/Lotus/Upgrades/CosmeticEnhancers/Utility/GolemArcaneRadialEnergyOnEnergyPickup",
-            "arcane\u{2019}energize",
-        )]);
+        let prices =
+            FixedPrices::new([("arcane_energize", 12.0), ("arcane\u{2019}energize", 30.0)]);
+        let mut items = ItemTable::build(&catalog);
+        let listed: Vec<wf_market::Item> = serde_json::from_str(
+            r#"[{"id":"1","slug":"arcane\u2019energize","gameRef":"/Lotus/Upgrades/CosmeticEnhancers/Utility/GolemArcaneRadialEnergyOnEnergyPickup","tags":[],"i18n":{}}]"#,
+        )
+        .unwrap();
+        items.index_market(&listed);
         let view = View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &items,
             prices: &prices,
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -508,6 +428,7 @@ mod tests {
         let view = View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -586,13 +507,14 @@ mod tests {
         let rows = mods(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
         });
         let riven_rows: Vec<&ModRow> = rows
             .iter()
-            .filter(|row| row.unique_name.contains(RIVEN_MARKER))
+            .filter(|row| is_riven(&row.unique_name))
             .collect();
         assert!(!riven_rows.is_empty());
         assert!(
@@ -614,6 +536,7 @@ mod tests {
         let rows = mods(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -653,6 +576,7 @@ mod tests {
         let rows = mods(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -674,6 +598,7 @@ mod tests {
         let equinox = arcanes(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -699,6 +624,7 @@ mod tests {
         let rows = arcanes(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &priced,
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -736,6 +662,7 @@ mod tests {
         let rows = mods(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &priced,
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -775,6 +702,7 @@ mod tests {
         let rows = mods(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &priced,
             favourites: &Favourites::default(),
             listings: &no_listings(),

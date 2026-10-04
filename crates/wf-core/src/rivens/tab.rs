@@ -2,9 +2,9 @@ use wf_inventory::{Inventory, Upgrade};
 
 use super::grading::{compat_path, perfectness, polarity, riven_name};
 use super::{Grader, RIVEN_MOD_SUFFIX, RivenRow, RivensTab, VeiledGroup, VeiledRiven};
-use crate::catalog::{Catalog, display_name_from_path};
+use crate::catalog::display_name_from_path;
+use crate::identity::ItemTable;
 use crate::listings::MarketListings;
-use crate::prices::market_slug;
 
 pub(super) fn weapon_class(name: &str) -> String {
     name.strip_suffix(RIVEN_MOD_SUFFIX)
@@ -12,11 +12,7 @@ pub(super) fn weapon_class(name: &str) -> String {
         .to_owned()
 }
 
-fn veiled_market_slug(name: &str) -> String {
-    format!("{}_(veiled)", market_slug(name))
-}
-
-fn veiled(inventory: &Inventory, catalog: &Catalog) -> Vec<VeiledGroup> {
+fn veiled(inventory: &Inventory, items: &ItemTable) -> Vec<VeiledGroup> {
     let mut groups: Vec<VeiledGroup> = Vec::new();
     let mut push = |challenge_id: String, complication: Option<String>, riven: VeiledRiven| {
         let group = groups
@@ -43,8 +39,8 @@ fn veiled(inventory: &Inventory, catalog: &Catalog) -> Vec<VeiledGroup> {
         else {
             continue;
         };
-        let item = catalog.item(&upgrade.item_type);
-        let name = item.map(|item| item.name.clone());
+        let record = items.get(&upgrade.item_type);
+        let name = record.map(|record| record.name.clone());
         push(
             challenge.challenge_type.clone(),
             challenge.complication.clone(),
@@ -52,8 +48,8 @@ fn veiled(inventory: &Inventory, catalog: &Catalog) -> Vec<VeiledGroup> {
                 riven_id: upgrade.item_id.as_str().to_owned(),
                 item_type: upgrade.item_type.clone(),
                 weapon_class: name.as_deref().map(weapon_class),
-                market_slug: name.as_deref().map(veiled_market_slug),
-                image_name: item.and_then(|item| item.image_name.clone()),
+                market_slug: record.and_then(|record| record.market_slug.clone()),
+                image_name: record.and_then(|record| record.image_name.clone()),
                 count: 1,
                 progress: challenge.progress,
                 required: challenge.required,
@@ -63,8 +59,8 @@ fn veiled(inventory: &Inventory, catalog: &Catalog) -> Vec<VeiledGroup> {
         );
     }
     for stack in inventory.pre_veiled_rivens() {
-        let item = catalog.item(&stack.item_type);
-        let name = item.map(|item| item.name.clone());
+        let record = items.get(&stack.item_type);
+        let name = record.map(|record| record.name.clone());
         push(
             "Unrevealed".to_owned(),
             None,
@@ -72,8 +68,8 @@ fn veiled(inventory: &Inventory, catalog: &Catalog) -> Vec<VeiledGroup> {
                 riven_id: format!("{}#unrevealed", stack.item_type),
                 item_type: stack.item_type.clone(),
                 weapon_class: name.as_deref().map(weapon_class),
-                market_slug: name.as_deref().map(veiled_market_slug),
-                image_name: item.and_then(|item| item.image_name.clone()),
+                market_slug: record.and_then(|record| record.market_slug.clone()),
+                image_name: record.and_then(|record| record.image_name.clone()),
                 count: stack.item_count,
                 progress: -1,
                 required: -1,
@@ -99,7 +95,7 @@ pub fn display_name(row: &RivenRow) -> Option<String> {
 impl Grader<'_> {
     pub(crate) fn tab(&self, inventory: &Inventory, listings: &MarketListings) -> RivensTab {
         RivensTab {
-            veiled: veiled(inventory, self.catalog),
+            veiled: veiled(inventory, self.items),
             unveiled: self.rows(inventory, listings),
             attribution: self.table.map(|table| table.attribution.clone()),
         }
@@ -144,7 +140,9 @@ impl Grader<'_> {
             .or_else(|| weapon_path.map(display_name_from_path))
             .or_else(|| mod_item.map(|item| item.name.clone()));
         let name = riven_type.and_then(|found| riven_name(found, &fingerprint.buffs));
-        let weapon_slug = weapon_item.map(|item| market_slug(&item.name));
+        let weapon_slug = weapon_item
+            .and_then(|item| self.items.get(&item.unique_name))
+            .and_then(|record| record.market_slug.clone());
         let listed_in_wfm = match (&name, &weapon_slug, fingerprint.lvl_req) {
             (Some(name), Some(slug), Some(mastery)) => {
                 listings.lists_riven(name, slug, mastery, fingerprint.rerolls)
@@ -448,7 +446,7 @@ mod tests {
         );
 
         let fixture = fixture();
-        let without = Grader::new(&fixture.catalog, &fixture.attributes, None)
+        let without = Grader::new(&fixture.catalog, &fixture.items, &fixture.attributes, None)
             .tab(&fixtures::inventory(), &MarketListings::default());
         assert!(without.attribution.is_none());
         assert!(without.unveiled.iter().all(|row| row.good_roll.is_none()));

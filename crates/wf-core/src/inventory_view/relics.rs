@@ -1,8 +1,10 @@
 use wf_data::Refinement;
 
 use crate::catalog::{
-    VaultStatus, display_name_from_path, refinement_from_unique_name, refinement_name,
+    REFINEMENTS, VaultStatus, display_name_from_path, projection_suffix,
+    refinement_from_unique_name, refinement_name,
 };
+use crate::identity::ItemKind;
 use crate::listings::PlacedOrders;
 use crate::view::View;
 
@@ -28,9 +30,9 @@ fn projection_identity(unique_name: &str) -> (String, String) {
         return (display_name_from_path(leaf), String::new());
     };
     let rest = rest.strip_prefix("VoidProjection").unwrap_or(rest);
-    let designation = ["Bronze", "Silver", "Gold", "Platinum"]
+    let designation = REFINEMENTS
         .into_iter()
-        .find_map(|suffix| rest.strip_suffix(suffix))
+        .find_map(|refinement| rest.strip_suffix(projection_suffix(refinement)))
         .unwrap_or(rest);
     if designation.is_empty() {
         return (tier.to_owned(), tier.to_owned());
@@ -45,6 +47,7 @@ pub(crate) fn relics(view: &View) -> Vec<RelicRow> {
     let View {
         inventory,
         catalog,
+        items,
         prices,
         favourites,
         listings,
@@ -65,27 +68,27 @@ pub(crate) fn relics(view: &View) -> Vec<RelicRow> {
                     refinement_from_unique_name(unique_name).unwrap_or(Refinement::Intact);
                 (relic, tier, refinement)
             };
-            let market_name = known
-                .and_then(|(relic, _)| relic.market_info.as_ref())
-                .map(|info| info.url_name.as_str());
+            let record = items
+                .get(unique_name)
+                .filter(|record| matches!(record.kind, ItemKind::Relic { .. }));
+            let market_slug = record.and_then(|record| record.market_slug.as_deref());
             Some((
                 refinement,
                 RelicRow {
                     relic,
                     tier,
                     refinement: refinement_name(refinement),
-                    image_name: known.and_then(|(relic, refinement)| {
-                        relic.image_names.get(&refinement).cloned()
-                    }),
+                    image_name: record.and_then(|record| record.image_name.clone()),
                     count,
-                    vault: VaultStatus::from(known.map(|(relic, _)| relic.vaulted)),
-                    plat: market_name.and_then(|url_name| prices.plat(url_name)),
+                    vault: record
+                        .and_then(|record| record.vault)
+                        .unwrap_or(VaultStatus::Unknown),
+                    plat: market_slug.and_then(|slug| prices.plat(slug)),
                     favourite: favourites.contains(unique_name),
-                    orders: market_name.map_or_else(PlacedOrders::default, |url_name| {
-                        listings.orders_for(url_name)
-                    }),
+                    orders: market_slug
+                        .map_or_else(PlacedOrders::default, |slug| listings.orders_for(slug)),
                     unique_name: unique_name.to_owned(),
-                    market_slug: market_name.unwrap_or_default().to_owned(),
+                    market_slug: market_slug.unwrap_or_default().to_owned(),
                 },
             ))
         })
@@ -106,6 +109,7 @@ mod tests {
     use super::*;
     use crate::catalog::{Catalog, fixtures};
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
 
     const RELIC_PROJECTIONS: &str = include_str!("../../../../fixtures/relic_projections.json");
 
@@ -120,6 +124,7 @@ mod tests {
         let rows = relics(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -142,6 +147,7 @@ mod tests {
         let row = relics(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -164,6 +170,7 @@ mod tests {
         let rows = relics(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -195,6 +202,7 @@ mod tests {
         let rows = relics(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -241,6 +249,7 @@ mod tests {
         let rows = relics(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),

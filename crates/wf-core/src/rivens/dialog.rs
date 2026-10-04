@@ -25,6 +25,7 @@ impl Grader<'_> {
 mod tests {
     use super::*;
     use crate::catalog::{Catalog, fixtures};
+    use crate::identity::ItemTable;
     use crate::listings::MarketListings;
     use crate::rivens::grading::riven_name;
     use crate::rivens::support::*;
@@ -154,7 +155,8 @@ mod tests {
         assert!(first_braton.ends_with("BratonPrime"));
 
         let attributes = attributes();
-        let grader = Grader::new(&catalog, &attributes, Some(&table));
+        let items = ItemTable::build(&catalog);
+        let grader = Grader::new(&catalog, &items, &attributes, Some(&table));
         let owned = grader
             .in_dialog(&braton.mod_type, &roll, Some(&inventory))
             .unwrap();

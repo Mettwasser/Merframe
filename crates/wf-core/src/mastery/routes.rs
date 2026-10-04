@@ -168,6 +168,7 @@ mod tests {
     use super::*;
     use crate::catalog::fixtures;
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
     use crate::listings::MarketListings;
     use crate::mastery::MasteryOptions;
     use crate::mastery::items::items;
@@ -185,6 +186,7 @@ mod tests {
             &View {
                 inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &MarketListings::default(),

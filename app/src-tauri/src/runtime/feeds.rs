@@ -127,7 +127,7 @@ async fn load_price_table<R: Runtime>(
     client: &mut Etagged<PriceTable>,
 ) -> wf_market::Result<usize> {
     if let Some(items) = market::item_table(state).await {
-        let indexed = state.prices.index(items.items());
+        let indexed = lock(&state.core).index_market(items.items());
         debug!(indexed, "Market slugs indexed by game reference");
     }
     let now = Utc::now();

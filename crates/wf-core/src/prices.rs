@@ -2,14 +2,10 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use wf_market::{Item, PriceEntry, PriceTable};
+use wf_market::{PriceEntry, PriceTable};
 
 pub trait PriceSource {
     fn plat(&self, market_slug: &str) -> Option<f64>;
-
-    fn slug_for(&self, _unique_name: &str) -> Option<String> {
-        None
-    }
 
     fn plat_max_rank(&self, _market_slug: &str) -> Option<f64> {
         None
@@ -110,7 +106,6 @@ impl Turnover {
 #[derive(Debug, Default)]
 pub struct PriceCache {
     entries: HashMap<String, PriceEntry>,
-    slugs: HashMap<String, String>,
     checked_at: Option<DateTime<Utc>>,
 }
 
@@ -119,15 +114,6 @@ impl PriceCache {
         self.entries.clone_from(&table.items);
         self.checked_at = Some(now);
         self.entries.len()
-    }
-
-    pub fn index(&mut self, items: &[Item]) -> usize {
-        self.slugs = items
-            .iter()
-            .filter(|item| !item.game_ref.is_empty())
-            .map(|item| (item.game_ref.clone(), item.slug.clone()))
-            .collect();
-        self.slugs.len()
     }
 
     pub fn checked(&mut self, now: DateTime<Utc>) {
@@ -155,10 +141,6 @@ impl PriceSource for PriceCache {
         self.quote(market_slug)?.sell
     }
 
-    fn slug_for(&self, unique_name: &str) -> Option<String> {
-        self.slugs.get(unique_name).cloned()
-    }
-
     fn plat_max_rank(&self, market_slug: &str) -> Option<f64> {
         self.quote(market_slug)?.sell_max_rank
     }
@@ -172,7 +154,6 @@ impl PriceSource for PriceCache {
 #[derive(Debug, Clone, Default)]
 pub struct FixedPrices {
     quotes: HashMap<String, PriceQuote>,
-    slugs: HashMap<String, String>,
 }
 
 #[cfg(test)]
@@ -195,19 +176,7 @@ impl FixedPrices {
                     )
                 })
                 .collect(),
-            slugs: HashMap::new(),
         }
-    }
-
-    pub fn with_slugs<I, S>(mut self, entries: I) -> Self
-    where
-        I: IntoIterator<Item = (S, S)>,
-        S: Into<String>,
-    {
-        for (unique_name, slug) in entries {
-            self.slugs.insert(unique_name.into(), slug.into());
-        }
-        self
     }
 
     pub fn with_max_rank<I, S>(mut self, entries: I) -> Self
@@ -239,10 +208,6 @@ impl PriceSource for FixedPrices {
         self.quotes.get(market_slug)?.sell
     }
 
-    fn slug_for(&self, unique_name: &str) -> Option<String> {
-        self.slugs.get(unique_name).cloned()
-    }
-
     fn plat_max_rank(&self, market_slug: &str) -> Option<f64> {
         self.quotes.get(market_slug)?.sell_max_rank
     }
@@ -250,27 +215,6 @@ impl PriceSource for FixedPrices {
     fn buy_plat(&self, market_slug: &str) -> Option<f64> {
         self.quotes.get(market_slug)?.buy
     }
-}
-
-pub(crate) fn market_slug(display_name: &str) -> String {
-    let mut slug = String::with_capacity(display_name.len());
-    let mut pending_separator = false;
-    for ch in display_name.chars() {
-        if ch.is_ascii_alphanumeric() {
-            if pending_separator && !slug.is_empty() {
-                slug.push('_');
-            }
-            pending_separator = false;
-            slug.push(ch.to_ascii_lowercase());
-        } else if ch != '\'' {
-            pending_separator = true;
-        }
-    }
-    slug
-}
-
-pub fn set_slug(set_name: &str) -> String {
-    format!("{}_set", market_slug(set_name))
 }
 
 #[cfg(test)]
@@ -285,22 +229,6 @@ mod tests {
 
     fn moment() -> DateTime<Utc> {
         DateTime::from_timestamp(1_757_410_800, 0).unwrap()
-    }
-
-    #[test]
-    fn market_slugs() {
-        assert_eq!(market_slug("Braton Prime Barrel"), "braton_prime_barrel");
-        assert_eq!(
-            market_slug("Trinity Prime Systems"),
-            "trinity_prime_systems"
-        );
-        assert_eq!(market_slug("Axi A1 Relic"), "axi_a1_relic");
-        assert_eq!(market_slug("Gaia's Tragedy"), "gaias_tragedy");
-        assert_eq!(set_slug("Braton Prime"), "braton_prime_set");
-        assert_eq!(
-            market_slug("Zephyr Prime  Blueprint"),
-            "zephyr_prime_blueprint"
-        );
     }
 
     #[test]
@@ -329,25 +257,6 @@ mod tests {
         assert_eq!(cache.buy_plat("braton_prime_set"), Some(30.0));
         assert_eq!(cache.plat_max_rank("braton_prime_set"), None);
         assert_eq!(cache.plat("nothing_is_traded_here"), None);
-    }
-
-    #[test]
-    fn indexed_slugs() {
-        let mut cache = PriceCache::default();
-        let items: Vec<Item> = serde_json::from_str(
-            r#"[{"id":"1","slug":"summoner’s_wrath","gameRef":"/Lotus/Upgrades/Mods/Aura/PlayerCompanionSummonDamageAuraMod","tags":[],"i18n":{}},
-                {"id":"2","slug":"braton_prime_set","gameRef":"","tags":[],"i18n":{}}]"#,
-        )
-        .unwrap();
-        assert_eq!(cache.index(&items), 1);
-        assert_eq!(
-            cache.slug_for("/Lotus/Upgrades/Mods/Aura/PlayerCompanionSummonDamageAuraMod"),
-            Some("summoner\u{2019}s_wrath".to_owned())
-        );
-        assert_eq!(
-            cache.slug_for("/Lotus/Weapons/Tenno/Rifle/BratonPrime"),
-            None
-        );
     }
 
     #[test]

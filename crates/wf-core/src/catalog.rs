@@ -14,13 +14,6 @@ pub(crate) const REQUIEM_MARKER: &str = "Requiem";
 pub(crate) const FORMA_ITEM: &str = "/Lotus/Types/Items/MiscItems/Forma";
 pub(crate) const FORMA_BLUEPRINT: &str = "/Lotus/Types/Recipes/Components/FormaBlueprint";
 
-const REFINEMENT_SUFFIXES: [(&str, Refinement); 4] = [
-    ("Bronze", Refinement::Intact),
-    ("Silver", Refinement::Exceptional),
-    ("Gold", Refinement::Flawless),
-    ("Platinum", Refinement::Radiant),
-];
-
 pub(crate) const REFINEMENTS: [Refinement; 4] = [
     Refinement::Intact,
     Refinement::Exceptional,
@@ -99,7 +92,8 @@ impl Catalog {
         if let Some((item, component)) = self.component_for_stock(unique_name) {
             return component_image(item, component);
         }
-        let (relic, refinement) = self.relic_by_unique_name(&format!("{unique_name}Bronze"))?;
+        let intact = format!("{unique_name}{}", projection_suffix(Refinement::Intact));
+        let (relic, refinement) = self.relic_by_unique_name(&intact)?;
         relic.image_names.get(&refinement).cloned()
     }
 
@@ -203,21 +197,12 @@ impl From<Option<bool>> for VaultStatus {
     }
 }
 
-pub(crate) fn vault_status(name: &str, vaulted: Option<bool>) -> Option<VaultStatus> {
-    names_a_prime(name).then(|| VaultStatus::from(vaulted))
+pub(crate) fn is_fish(unique_name: &str) -> bool {
+    unique_name.contains("/Items/Fish/")
 }
 
 pub(crate) fn is_part(component: &Component) -> bool {
     component.unique_name.starts_with(RECIPE_PREFIX)
-}
-
-pub(crate) fn part_market_slug(item: &Item, component: &Component) -> String {
-    let name = part_name(item, component);
-    if component.unique_name.ends_with("Component") {
-        crate::prices::market_slug(&format!("{name} Blueprint"))
-    } else {
-        crate::prices::market_slug(&name)
-    }
 }
 
 pub(crate) fn part_name(item: &Item, component: &Component) -> String {
@@ -229,11 +214,19 @@ pub(crate) fn part_name(item: &Item, component: &Component) -> String {
     }
 }
 
+pub(crate) fn projection_suffix(refinement: Refinement) -> &'static str {
+    match refinement {
+        Refinement::Intact => "Bronze",
+        Refinement::Exceptional => "Silver",
+        Refinement::Flawless => "Gold",
+        Refinement::Radiant => "Platinum",
+    }
+}
+
 pub(crate) fn refinement_from_unique_name(unique_name: &str) -> Option<Refinement> {
-    REFINEMENT_SUFFIXES
+    REFINEMENTS
         .into_iter()
-        .find(|(suffix, _)| unique_name.ends_with(suffix))
-        .map(|(_, refinement)| refinement)
+        .find(|refinement| unique_name.ends_with(projection_suffix(*refinement)))
 }
 
 pub(crate) fn refinement_name(refinement: Refinement) -> &'static str {
@@ -296,6 +289,17 @@ pub mod fixtures {
 
     pub fn foundry_catalog() -> Catalog {
         Catalog::from_json(FOUNDRY_ITEMS, RELICS, COMPONENTS).unwrap()
+    }
+
+    pub fn market_item(slug: &str, name: &str, game_ref: &str, tags: &[&str]) -> wf_market::Item {
+        serde_json::from_value(serde_json::json!({
+            "id": slug,
+            "slug": slug,
+            "gameRef": game_ref,
+            "tags": tags,
+            "i18n": {"en": {"name": name, "icon": "", "thumb": ""}},
+        }))
+        .unwrap()
     }
 
     pub fn inventory_stocked(

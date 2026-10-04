@@ -3,10 +3,9 @@ use std::collections::BTreeMap;
 use wf_data::{Item, catch_grade, catch_size};
 use wf_inventory::{EquipmentItem, Inventory};
 
-use super::upgrades::upgrade_outside_the_export;
 use super::{MiscRow, SculptureStars, catalogued_name, display_name};
-use crate::catalog::{Catalog, RELIC_PREFIX};
-use crate::prices::market_slug;
+use crate::catalog::{Catalog, RELIC_PREFIX, is_fish};
+use crate::identity::{ItemRecord, Variant};
 use crate::view::View;
 
 const SCULPTURE_SOCKETS: [(&str, u32, u32); 11] = [
@@ -38,7 +37,7 @@ fn sculpture_stars(item_type: &str, sockets: Option<u32>) -> Option<SculptureSta
 }
 
 fn is_catchable_fish(item_type: &str) -> bool {
-    item_type.contains("/Items/Fish/") && !item_type.contains("Boot")
+    is_fish(item_type) && !item_type.contains("Boot")
 }
 
 fn is_arcane_helmet(item_type: &str) -> bool {
@@ -85,19 +84,6 @@ fn misc_source_item<'a>(catalog: &'a Catalog, unique_name: &str) -> Option<&'a I
     }
     let (base, _) = catch_grade(unique_name)?;
     catalog.item(&base)
-}
-
-fn misc_market_slug(catalog: &Catalog, unique_name: &str) -> String {
-    if let Some(slug) =
-        upgrade_outside_the_export(unique_name).and_then(|upgrade| upgrade.market_slug)
-    {
-        return slug.to_owned();
-    }
-    let name = match catch_grade(unique_name) {
-        Some((base, _)) => display_name(catalog, &base),
-        None => display_name(catalog, unique_name),
-    };
-    market_slug(&name)
 }
 
 fn is_tradable_misc(catalog: &Catalog, unique_name: &str) -> bool {
@@ -160,13 +146,26 @@ pub(crate) fn misc(view: &View) -> Vec<MiscRow> {
     rows
 }
 
+fn record_row(view: &View, unique_name: &str, record: &ItemRecord, count: i64) -> MiscRow {
+    let slug = record.market_slug.as_deref().unwrap_or_default();
+    MiscRow {
+        name: record.name.clone(),
+        image_name: record.image_name.clone(),
+        count,
+        ducats: None,
+        plat: view.prices.plat(slug),
+        favourite: view.favourites.contains(unique_name),
+        orders: view.listings.orders_for(slug),
+        market_subtype: None,
+        stars: None,
+        unique_name: unique_name.to_owned(),
+        market_slug: slug.to_owned(),
+    }
+}
+
 fn counted_rows(view: &View) -> Vec<MiscRow> {
     let View {
-        inventory,
-        catalog,
-        prices,
-        favourites,
-        listings,
+        inventory, catalog, ..
     } = *view;
     let mut counted: BTreeMap<(&str, Option<SculptureStars>), i64> = BTreeMap::new();
     for item in inventory
@@ -185,41 +184,27 @@ fn counted_rows(view: &View) -> Vec<MiscRow> {
     counted
         .into_iter()
         .filter(|(_, count)| *count > 0)
-        .map(|((unique_name, stars), count)| {
-            let slug = misc_market_slug(catalog, unique_name);
-            MiscRow {
-                name: display_name(catalog, unique_name),
-                image_name: catalog
-                    .item(unique_name)
-                    .and_then(|item| item.image_name.clone())
-                    .or_else(|| {
-                        upgrade_outside_the_export(unique_name)?
-                            .image_name
-                            .map(str::to_owned)
-                    }),
-                ducats: catalog
-                    .component(unique_name)
-                    .and_then(|(_, component)| component.ducats),
-                plat: prices.plat(&slug),
-                favourite: favourites.contains(unique_name),
-                orders: listings.orders_for(&slug),
-                market_subtype: catch_size(unique_name),
-                stars,
-                unique_name: unique_name.to_owned(),
+        .map(|((unique_name, stars), count)| MiscRow {
+            ducats: catalog
+                .component(unique_name)
+                .and_then(|(_, component)| component.ducats),
+            market_subtype: catch_size(unique_name),
+            stars,
+            ..record_row(
+                view,
+                unique_name,
+                &view
+                    .items
+                    .resolve(unique_name, || display_name(catalog, unique_name)),
                 count,
-                market_slug: slug,
-            }
+            )
         })
         .collect()
 }
 
 fn cosmetic_rows(view: &View) -> Vec<MiscRow> {
     let View {
-        inventory,
-        catalog,
-        prices,
-        favourites,
-        listings,
+        inventory, catalog, ..
     } = *view;
     let mut counted: BTreeMap<&str, i64> = BTreeMap::new();
     for skin in &inventory.weapon_skins {
@@ -235,103 +220,46 @@ fn cosmetic_rows(view: &View) -> Vec<MiscRow> {
     counted
         .into_iter()
         .map(|(unique_name, count)| {
-            let name = display_name(catalog, unique_name);
-            let slug = market_slug(&name);
-            MiscRow {
-                image_name: catalog
-                    .item(unique_name)
-                    .and_then(|item| item.image_name.clone()),
+            record_row(
+                view,
+                unique_name,
+                &view
+                    .items
+                    .resolve(unique_name, || display_name(catalog, unique_name)),
                 count,
-                ducats: None,
-                plat: prices.plat(&slug),
-                favourite: favourites.contains(unique_name),
-                orders: listings.orders_for(&slug),
-                market_subtype: None,
-                stars: None,
-                unique_name: unique_name.to_owned(),
-                market_slug: slug,
-                name,
-            }
+            )
         })
         .collect()
 }
 
 fn pet_print_rows(view: &View) -> Vec<MiscRow> {
-    let View {
-        inventory,
-        catalog,
-        prices,
-        favourites,
-        listings,
-    } = *view;
     let mut counted: BTreeMap<&str, i64> = BTreeMap::new();
-    for print in &inventory.kubrow_pet_prints {
-        let personality = print.dominant_traits.personality.as_str();
-        if catalog.item(personality).is_some() {
-            *counted.entry(personality).or_insert(0) += 1;
-        }
+    for print in &view.inventory.kubrow_pet_prints {
+        *counted
+            .entry(print.dominant_traits.personality.as_str())
+            .or_insert(0) += 1;
     }
     counted
         .into_iter()
-        .map(|(unique_name, count)| {
-            let name = format!("{} Imprint", display_name(catalog, unique_name));
-            let slug = market_slug(&name);
-            MiscRow {
-                image_name: catalog
-                    .item(unique_name)
-                    .and_then(|item| item.image_name.clone()),
-                count,
-                ducats: None,
-                plat: prices.plat(&slug),
-                favourite: favourites.contains(unique_name),
-                orders: listings.orders_for(&slug),
-                market_subtype: None,
-                stars: None,
-                unique_name: unique_name.to_owned(),
-                market_slug: slug,
-                name,
-            }
+        .filter_map(|(unique_name, count)| {
+            let imprint = view.items.variant(unique_name, Variant::Imprint)?;
+            Some(record_row(view, unique_name, imprint, count))
         })
         .collect()
 }
 
 fn spare_equipment_rows(view: &View) -> Vec<MiscRow> {
-    let View {
-        inventory,
-        catalog,
-        prices,
-        favourites,
-        listings,
-    } = *view;
     let mut counted: BTreeMap<&str, i64> = BTreeMap::new();
-    for owned in spare_weapons(inventory) {
-        if owned.xp == 0
-            && is_spare_weapon_stock(&owned.item_type)
-            && catalog.item(&owned.item_type).is_some()
-        {
+    for owned in spare_weapons(view.inventory) {
+        if owned.xp == 0 && is_spare_weapon_stock(&owned.item_type) {
             *counted.entry(owned.item_type.as_str()).or_insert(0) += 1;
         }
     }
     counted
         .into_iter()
-        .map(|(unique_name, count)| {
-            let name = display_name(catalog, unique_name);
-            let slug = market_slug(&name);
-            MiscRow {
-                image_name: catalog
-                    .item(unique_name)
-                    .and_then(|item| item.image_name.clone()),
-                count,
-                ducats: None,
-                plat: prices.plat(&slug),
-                favourite: favourites.contains(unique_name),
-                orders: listings.orders_for(&slug),
-                market_subtype: None,
-                stars: None,
-                unique_name: unique_name.to_owned(),
-                market_slug: slug,
-                name,
-            }
+        .filter_map(|(unique_name, count)| {
+            let record = view.items.get(unique_name)?;
+            Some(record_row(view, unique_name, record, count))
         })
         .collect()
 }
@@ -345,6 +273,7 @@ mod tests {
     use crate::catalog::display_name_from_path;
     use crate::catalog::fixtures;
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
     use crate::prices::FixedPrices;
 
     const MISC_ITEMS: &str = r#"[
@@ -426,6 +355,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -465,6 +395,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -521,6 +452,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &misc_catalog(),
+            items: &ItemTable::build(&misc_catalog()),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -645,6 +577,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -671,6 +604,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices,
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -742,6 +676,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -760,6 +695,7 @@ mod tests {
         let narrowed = misc(&View {
             inventory: &inventory,
             catalog: &without_catches,
+            items: &ItemTable::build(&without_catches),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -780,6 +716,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -815,6 +752,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -857,6 +795,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -882,6 +821,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -1030,6 +970,7 @@ mod tests {
         let rows = misc(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),

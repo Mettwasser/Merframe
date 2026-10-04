@@ -3,8 +3,9 @@ use std::collections::HashSet;
 
 use wf_data::{Component, Drop, Item, Refinement};
 
-use crate::catalog::{Catalog, REFINEMENTS, Stock, is_part, part_market_slug, refinement_name};
-use crate::prices::{PriceSource, market_slug};
+use crate::catalog::{Catalog, REFINEMENTS, Stock, is_part, refinement_name};
+use crate::identity::{market_slug, part_market_slug};
+use crate::prices::PriceSource;
 use crate::relic_planner::owned_relic_count;
 
 use super::{NodeDrop, NodeMarket, OwnedRelic};

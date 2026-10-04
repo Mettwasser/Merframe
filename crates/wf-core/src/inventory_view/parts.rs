@@ -4,10 +4,9 @@ use wf_data::{Component, Item};
 
 use super::misc::is_landing_craft_part;
 use super::{ItemStatus, PartRow, PartSet, SetComponent, SetRow};
-use crate::catalog::{
-    Catalog, Stock, component_image, is_prime, part_market_slug, part_name, vault_status,
-};
-use crate::prices::{Prices, set_slug};
+use crate::catalog::{Catalog, Stock, is_prime};
+use crate::identity::{ItemTable, Variant};
+use crate::prices::Prices;
 use crate::view::View;
 
 fn is_mastered(affinity: &HashMap<&str, u64>, item: &Item) -> bool {
@@ -52,6 +51,7 @@ pub(crate) fn parts(view: &View) -> Vec<PartRow> {
     let View {
         inventory,
         catalog,
+        items,
         prices,
         favourites,
         listings,
@@ -84,36 +84,37 @@ pub(crate) fn parts(view: &View) -> Vec<PartRow> {
             if count <= 0 {
                 return None;
             }
-            let name = part_name(item, component);
-            let slug = part_market_slug(item, component);
+            let part = items.part(item, component)?;
+            let set = items.variant(&item.unique_name, Variant::Set)?;
+            let slug = part.market_slug.as_deref().unwrap_or_default();
             Some(PartRow {
                 count,
                 prices: Prices {
-                    sell: prices.plat(&slug),
-                    buy: prices.buy_plat(&slug),
+                    sell: prices.plat(slug),
+                    buy: prices.buy_plat(slug),
                     ducats: component.ducats,
                 },
                 set: PartSet {
-                    name: item.name.clone(),
+                    name: set.name.clone(),
                     complete: set_is_complete(&stock, item),
-                    orders: listings.orders_for(&set_slug(&item.name)),
+                    orders: listings.orders_for(set.market_slug.as_deref().unwrap_or_default()),
                 },
-                vault: vault_status(&name, item.vaulted),
+                vault: part.vault,
                 item: ItemStatus {
                     built: owned_equipment.contains(item.unique_name.as_str()),
                     mastered: is_mastered(&affinity, item),
                 },
-                prime: is_prime(item),
+                prime: part.prime,
                 favourite: favourites.any([
                     unique_name,
                     component.unique_name.as_str(),
                     item.unique_name.as_str(),
                 ]),
-                orders: listings.orders_for(&slug),
+                orders: listings.orders_for(slug),
                 unique_name: unique_name.to_owned(),
-                image_name: component_image(item, component),
-                market_slug: slug,
-                name,
+                image_name: part.image_name.clone(),
+                market_slug: slug.to_owned(),
+                name: part.name.clone(),
             })
         })
         .collect();
@@ -135,20 +136,21 @@ fn set_is_complete(stock: &Stock<'_>, item: &Item) -> bool {
             .all(|component| stock.count(&component.unique_name) >= i64::from(component.item_count))
 }
 
-fn set_components(item: &Item, stock: &Stock<'_>) -> Vec<SetComponent> {
+fn set_components(items: &ItemTable, item: &Item, stock: &Stock<'_>) -> Vec<SetComponent> {
     set_parts(item)
-        .map(|component| {
+        .filter_map(|component| {
+            let part = items.part(item, component)?;
             let owned = stock.count(&component.unique_name);
             let required = i64::from(component.item_count);
-            SetComponent {
+            Some(SetComponent {
                 unique_name: component.unique_name.clone(),
-                name: part_name(item, component),
-                image_name: component_image(item, component),
-                market_slug: part_market_slug(item, component),
+                name: part.name.clone(),
+                image_name: part.image_name.clone(),
+                market_slug: part.market_slug.clone().unwrap_or_default(),
                 owned,
                 required,
                 enough: owned >= required,
-            }
+            })
         })
         .collect()
 }
@@ -171,6 +173,7 @@ pub(crate) fn sets(view: &View) -> Vec<SetRow> {
     let View {
         inventory,
         catalog,
+        items,
         prices,
         favourites,
         listings,
@@ -181,7 +184,7 @@ pub(crate) fn sets(view: &View) -> Vec<SetRow> {
     let mut rows: Vec<SetRow> = catalog
         .items()
         .filter_map(|item| {
-            let components = set_components(item, &stock);
+            let components = set_components(items, item, &stock);
             if components.len() <= 1 {
                 return None;
             }
@@ -199,11 +202,12 @@ pub(crate) fn sets(view: &View) -> Vec<SetRow> {
             } else {
                 0
             };
-            let slug = set_slug(&item.name);
+            let set = items.variant(&item.unique_name, Variant::Set)?;
+            let slug = set.market_slug.as_deref().unwrap_or_default();
             Some(SetRow {
-                set_name: item.name.clone(),
+                set_name: set.name.clone(),
                 unique_name: item.unique_name.clone(),
-                image_name: item.image_name.clone(),
+                image_name: set.image_name.clone(),
                 owned_parts,
                 total_parts: components.len(),
                 count,
@@ -212,14 +216,14 @@ pub(crate) fn sets(view: &View) -> Vec<SetRow> {
                     built: owned_equipment.contains(item.unique_name.as_str()),
                     mastered: is_mastered(&affinity, item),
                 },
-                vault: vault_status(&item.name, item.vaulted),
+                vault: set.vault,
                 prices: Prices {
-                    sell: prices.plat(&slug),
-                    buy: prices.buy_plat(&slug),
+                    sell: prices.plat(slug),
+                    buy: prices.buy_plat(slug),
                     ducats: Some(set_ducats(catalog, &components)),
                 },
-                orders: listings.orders_for(&slug),
-                market_slug: slug,
+                orders: listings.orders_for(slug),
+                market_slug: slug.to_owned(),
                 favourite: favourites.contains(&item.unique_name),
                 components,
             })
@@ -245,6 +249,7 @@ mod tests {
         let rows = parts(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -267,6 +272,7 @@ mod tests {
         let rows = parts(&View {
             inventory: &stocked,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -312,6 +318,7 @@ mod tests {
             parts(&View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &no_listings()
@@ -341,6 +348,7 @@ mod tests {
         let rows = parts(&View {
             inventory: &stocked,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -352,6 +360,7 @@ mod tests {
         let braton_set = sets(&View {
             inventory: &stocked,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -382,6 +391,7 @@ mod tests {
         let rows = parts(&View {
             inventory: &unmastered,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -398,6 +408,7 @@ mod tests {
         let braton_set = sets(&View {
             inventory: &unmastered,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -428,6 +439,7 @@ mod tests {
         let rows = sets(&View {
             inventory: &stocked,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -451,6 +463,7 @@ mod tests {
             sets(&View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &no_listings()
@@ -471,6 +484,7 @@ mod tests {
         let rows = sets(&View {
             inventory: &stocked,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -496,6 +510,7 @@ mod tests {
             sets(&View {
                 inventory: &inventory,
                 catalog: &with_skins,
+                items: &ItemTable::build(&with_skins),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &no_listings()
@@ -506,6 +521,7 @@ mod tests {
             sets(&View {
                 inventory: &stocked,
                 catalog: &with_skins,
+                items: &ItemTable::build(&with_skins),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &no_listings()
@@ -530,6 +546,7 @@ mod tests {
         let rows = sets(&View {
             inventory: &stocked,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -598,6 +615,7 @@ mod tests {
         let row = parts(&View {
             inventory: &stocked,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -630,6 +648,7 @@ mod tests {
         let row = parts(&View {
             inventory: &never_built,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &no_listings(),
@@ -665,6 +684,7 @@ mod tests {
         let rows = parts(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &listings,
@@ -698,6 +718,7 @@ mod tests {
             parts(&View {
                 inventory: &inventory,
                 catalog: &catalog,
+                items: &ItemTable::build(&catalog),
                 prices: &prices(),
                 favourites: &Favourites::default(),
                 listings: &no_listings()
@@ -725,6 +746,7 @@ mod tests {
         let rows = parts(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices(),
             favourites: &Favourites::default(),
             listings: &listings,

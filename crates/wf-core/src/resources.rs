@@ -278,6 +278,7 @@ mod tests {
     use super::*;
     use crate::catalog::{Catalog, fixtures};
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
     use crate::listings::MarketListings;
     use crate::prices::FixedPrices;
 
@@ -299,6 +300,7 @@ mod tests {
         let view = View {
             inventory,
             catalog,
+            items: &ItemTable::build(catalog),
             prices: &FixedPrices::default(),
             favourites,
             listings: &MarketListings::default(),
@@ -499,6 +501,7 @@ mod tests {
         let view = View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &FixedPrices::default(),
             favourites: &Favourites::default(),
             listings: &MarketListings::default(),

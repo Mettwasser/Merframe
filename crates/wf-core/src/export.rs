@@ -42,6 +42,7 @@ mod tests {
     use super::*;
     use crate::catalog::fixtures;
     use crate::favourites::Favourites;
+    use crate::identity::ItemTable;
     use crate::listings::MarketListings;
     use crate::prices::FixedPrices;
     use crate::view::View;
@@ -57,11 +58,13 @@ mod tests {
         let inventory_tab = inventory_view::tab(&View {
             inventory: &inventory,
             catalog: &catalog,
+            items: &ItemTable::build(&catalog),
             prices: &prices,
             favourites: &favourites,
             listings: &listings,
         });
-        let rivens_tab = rivens::Grader::new(&catalog, &[], None).tab(&inventory, &listings);
+        let rivens_tab = rivens::Grader::new(&catalog, &ItemTable::build(&catalog), &[], None)
+            .tab(&inventory, &listings);
         let now = chrono::DateTime::from_timestamp_millis(1_788_807_069_000).unwrap();
         let foundry_tab = foundry::tab(&inventory, &catalog, None, None, now, &favourites);
 

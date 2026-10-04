@@ -2,6 +2,7 @@ use wf_inventory::Inventory;
 
 use crate::catalog::Catalog;
 use crate::favourites::Favourites;
+use crate::identity::ItemTable;
 use crate::listings::MarketListings;
 use crate::prices::PriceSource;
 
@@ -9,6 +10,7 @@ use crate::prices::PriceSource;
 pub(crate) struct View<'a> {
     pub(crate) inventory: &'a Inventory,
     pub(crate) catalog: &'a Catalog,
+    pub(crate) items: &'a ItemTable,
     pub(crate) prices: &'a dyn PriceSource,
     pub(crate) favourites: &'a Favourites,
     pub(crate) listings: &'a MarketListings,
