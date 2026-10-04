@@ -101,6 +101,7 @@ pub(crate) fn plan(
             .total_cmp(&left.best.wanted_chance)
             .then_with(|| right.best.plat.total_cmp(&left.best.plat))
             .then_with(|| left.relic.cmp(&right.relic))
+            .then_with(|| left.unique_name.cmp(&right.unique_name))
     });
     plans
 }
@@ -426,6 +427,32 @@ mod tests {
                 .iter()
                 .any(|reward| reward.favourite && reward.name.contains("Akstiletto"))
         );
+    }
+
+    #[test]
+    fn every_relic_in_a_fixed_order() {
+        let inventory = fixtures::inventory();
+        let catalog = fixtures::catalog();
+        let order = || -> Vec<String> {
+            plan(
+                &View {
+                    inventory: &inventory,
+                    catalog: &catalog,
+                    prices: &prices(),
+                    favourites: &Favourites::default(),
+                    listings: &MarketListings::default(),
+                },
+                &[],
+                DEFAULT_SQUAD_SIZE,
+                false,
+            )
+            .into_iter()
+            .map(|entry| entry.unique_name)
+            .collect()
+        };
+        let first = order();
+        assert!(first.len() > 1);
+        assert_eq!(first, order());
     }
 
     #[test]
