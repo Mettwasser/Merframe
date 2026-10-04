@@ -11,7 +11,7 @@ mod foundry;
 mod identity;
 mod inventory_view;
 mod listings;
-mod market_stock;
+mod market_holdings;
 mod mastery;
 mod prices;
 mod relic_planner;
@@ -42,7 +42,6 @@ pub use inventory_view::{
     SculptureStars, SetComponent, SetRow, TabTotals, UpgradePrices,
 };
 pub use listings::{MarketListings, PlacedOrders};
-pub use market_stock::MarketStock;
 pub use mastery::{
     Acquisition, CategoryTotals, Level, LevelUpRoute, MasteryComponent, MasteryGroup, MasteryItem,
     MasteryOptions, MasteryOrdering, MasterySummary, MasteryTab, RouteMember,
@@ -70,4 +69,4 @@ pub use stats::{
 pub use store::{
     RelicOpening, Snapshot, SnapshotId, StatPoint, Store, StoredDelta, StoredTrade, TimeRange,
 };
-pub use trade::{Trade, TradeItem, relic_refinement, same_part, traded_set};
+pub use trade::{Trade, TradeItem, relic_refinement, traded_set};

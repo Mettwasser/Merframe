@@ -11,13 +11,13 @@ use crate::prices::PriceSource;
 use crate::view::View;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum UpgradeKind {
+pub(crate) enum UpgradeKind {
     Mod,
     Arcane,
     Neither,
 }
 
-pub(super) fn upgrade_kind(item_type: &str) -> UpgradeKind {
+pub(crate) fn upgrade_kind(item_type: &str) -> UpgradeKind {
     let peculiar = item_type.starts_with("/Lotus/Upgrades/CosmeticEnhancers/Peculiars/");
     if item_type.starts_with(ARCANE_PREFIX) && !peculiar {
         return UpgradeKind::Arcane;

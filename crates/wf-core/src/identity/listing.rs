@@ -68,6 +68,14 @@ fn listed_kind(item: &wf_market::Item) -> ItemKind {
     ItemKind::Other
 }
 
+pub(crate) fn traded_as(unique_name: &str) -> Cow<'_, str> {
+    if unique_name.contains("/Kubrow/Collars/") {
+        Cow::Borrowed(unique_name)
+    } else {
+        Cow::Owned(unique_name.replace("Component", "Blueprint"))
+    }
+}
+
 impl ItemTable {
     pub fn index_market(&mut self, items: &[wf_market::Item]) -> usize {
         self.records.truncate(self.catalogued);
@@ -264,5 +272,14 @@ mod tests {
         bare.i18n.clear();
         assert_eq!(market_name(&forma), "Forma Blueprint");
         assert_eq!(market_name(&bare), "no_english");
+        assert_eq!(
+            traded_as("/Lotus/Types/Recipes/WarframeRecipes/RhinoPrimeChassisComponent"),
+            "/Lotus/Types/Recipes/WarframeRecipes/RhinoPrimeChassisBlueprint"
+        );
+        assert_eq!(
+            traded_as("/Lotus/Types/Recipes/Kubrow/Collars/PrimeKubrowCollarABandComponent"),
+            "/Lotus/Types/Recipes/Kubrow/Collars/PrimeKubrowCollarABandComponent",
+            "kubrow collar parts trade built"
+        );
     }
 }

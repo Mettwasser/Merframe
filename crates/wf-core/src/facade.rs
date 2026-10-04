@@ -18,10 +18,9 @@ use crate::events::{self, AlertSettings, CoreEvent, Engine, ScannedRewards, Scan
 use crate::export::{ExportBundle, export};
 use crate::favourites::Favourites;
 use crate::foundry::{self, FoundryTab};
-use crate::identity::ItemTable;
+use crate::identity::{ItemRecord, ItemTable};
 use crate::inventory_view::{self, InventoryTab};
 use crate::listings::MarketListings;
-use crate::market_stock::MarketStock;
 use crate::mastery::{self, MasteryOptions, MasteryTab};
 use crate::prices::PriceSource;
 use crate::relic_planner::{self, MissingPart, RelicPlan, RelicSource, RewardScreen};
@@ -112,6 +111,10 @@ impl Core {
 
     pub fn index_market(&mut self, items: &[wf_market::Item]) -> usize {
         self.items.index_market(items)
+    }
+
+    pub fn items(&self) -> &ItemTable {
+        &self.items
     }
 
     pub fn set_market_listings(&mut self, listings: MarketListings) {
@@ -282,10 +285,15 @@ impl Core {
         })
     }
 
-    pub fn market_stock(&self) -> Option<MarketStock<'_>> {
-        Some(MarketStock {
-            inventory: &self.account.as_ref()?.inventory,
-            catalog: &self.catalog,
+    pub fn market_owned(
+        &self,
+        record: &ItemRecord,
+        listed_name: &str,
+        rank: Option<u32>,
+        subtype: Option<&str>,
+    ) -> i64 {
+        self.view().map_or(0, |view| {
+            view.market_owned(record, listed_name, rank, subtype)
         })
     }
 

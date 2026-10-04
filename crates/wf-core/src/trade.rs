@@ -132,10 +132,6 @@ pub fn traded_set(catalog: &Catalog, items: &[TradeItem]) -> Option<TradeItem> {
     })
 }
 
-pub fn same_part(traded: &str, catalog: &str) -> bool {
-    name_key(traded) == name_key(catalog)
-}
-
 pub(crate) fn name_key(name: &str) -> String {
     let name = name.strip_suffix(" Blueprint").unwrap_or(name);
     let base = match relic_refinement(name) {
@@ -175,7 +171,10 @@ mod tests {
             Some(("Axi A5 Relic", String::from("intact")))
         );
         assert_eq!(relic_refinement("Forma Blueprint"), None);
-        assert!(same_part("Lith Q3 Relic [RADIANT]", "Lith Q3 Relic"));
+        assert_eq!(
+            name_key("Lith Q3 Relic [RADIANT]"),
+            name_key("Lith Q3 Relic")
+        );
     }
 
     #[test]

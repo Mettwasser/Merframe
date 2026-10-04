@@ -24,8 +24,8 @@ use game::{inventory_task, log_task, process_task};
 use market_loop::{auto_close, market_presence_task, market_task};
 
 pub use game::acquire;
+pub(crate) use market_loop::trade_side;
 pub use market_loop::{MarketAutoClose, MarketSnapshot};
-pub(crate) use market_loop::{listed_item, trade_side};
 
 pub const INVENTORY_UPDATED: &str = "inventory-updated";
 pub const STATUS_UPDATED: &str = "status-updated";

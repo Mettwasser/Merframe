@@ -13,6 +13,7 @@ use crate::catalog::{
 };
 
 pub use listing::market_name;
+pub(crate) use listing::traded_as;
 
 pub(crate) struct UnlistedUpgrade {
     unique_name: &'static str,

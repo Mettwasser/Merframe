@@ -12,7 +12,7 @@ use wf_market::{
 };
 
 use super::{MARKET_AUTO_CLOSED, MARKET_PRESENCE, STATUS_UPDATED, emit};
-use crate::market::{self, ItemTable, MarketCategory, OrderRow};
+use crate::market::{self, MarketCategory, OrderRow};
 use crate::settings::{self, MarketAccount};
 use crate::state::{AppState, lock, read, write};
 
@@ -83,7 +83,9 @@ async fn market_snapshot(state: &Arc<AppState>, refresh: MarketRefresh) -> Marke
         Some(orders) => market::order_rows(state, orders).await,
         None => None,
     };
-    market::remember_listings(state, orders.clone(), refresh.auctions.clone());
+    state
+        .listings
+        .remember(&state.core, orders.as_deref(), refresh.auctions.as_deref());
     MarketSnapshot {
         orders,
         auctions: refresh.auctions,
@@ -204,23 +206,6 @@ fn matching_order<'a>(
         .map(|order| (order, closing_quantity(market_item, item, order)))
 }
 
-pub(crate) fn listed_item<'a>(table: &'a ItemTable, name: &str) -> Option<&'a Item> {
-    let listed = match name {
-        "Enter Nihil's Oubliette" => "Nihil's Oubliette (Key)",
-        "Legendary Core" => "Legendary Fusion Core",
-        "Ancient Core" => "Ancient Fusion Core",
-        _ => name,
-    };
-    table
-        .by_name(listed)
-        .or_else(|| table.by_name(name.strip_suffix(" Set")?))
-        .or_else(|| {
-            name.ends_with(" Riven Mod")
-                .then(|| table.by_name(&format!("{name} (Veiled)")))
-                .flatten()
-        })
-}
-
 fn closing_quantity(market_item: &Item, item: &TradedItem, order: &Order) -> u32 {
     let copies = match (MarketCategory::of(market_item), item.rank) {
         (MarketCategory::Arcanes, Some(rank)) if rank > order.rank.unwrap_or(0) => {
@@ -254,10 +239,10 @@ pub(super) async fn auto_close<R: Runtime>(
     let refresh = market_refresh(state, &slug).await;
     let mut orders = refresh.orders.unwrap_or_default();
     let auctions = refresh.auctions.unwrap_or_default();
-    let table = if orders.is_empty() {
+    let market_items = if orders.is_empty() {
         None
     } else {
-        market::item_table(state).await
+        market::market_items(state).await
     };
     let client = state.market();
     for item in traded {
@@ -289,10 +274,10 @@ pub(super) async fn auto_close<R: Runtime>(
             }
             continue;
         }
-        let Some(table) = &table else {
+        let Some(market_items) = &market_items else {
             continue;
         };
-        let Some(market_item) = listed_item(table, &item.name) else {
+        let Some(market_item) = market_items.listed(lock(&state.core).items(), &item.name) else {
             debug!(item = item.name, "Traded item not on warframe.market");
             continue;
         };
@@ -789,27 +774,6 @@ mod tests {
             rarity: None,
             i18n: HashMap::from([(String::from("en"), en)]),
         }
-    }
-
-    #[test]
-    fn dialog_names_find_their_listing() {
-        let table = ItemTable::new(
-            vec![
-                named_item("key", "Nihil's Oubliette (Key)", &["key"]),
-                named_item("core", "Legendary Fusion Core", &["fusion core"]),
-                named_item("veiled", "Rifle Riven Mod (Veiled)", &["mod", "riven_mod"]),
-                named_item("set", "Braton Prime Set", &["set"]),
-                named_item("forma", "Forma Blueprint", &["misc"]),
-            ],
-            Utc::now(),
-        );
-        let found = |name: &str| listed_item(&table, name).map(|item| item.id.as_str());
-        assert_eq!(found("Enter Nihil's Oubliette"), Some("key"));
-        assert_eq!(found("Legendary Core"), Some("core"));
-        assert_eq!(found("Rifle Riven Mod"), Some("veiled"));
-        assert_eq!(found("Braton Prime Set"), Some("set"));
-        assert_eq!(found("Forma"), Some("forma"));
-        assert_eq!(found("Rubico Critacan"), None);
     }
 
     fn traded(quantity: u32, rank: Option<u32>) -> TradedItem {

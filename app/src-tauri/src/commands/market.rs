@@ -3,7 +3,9 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
-use wf_core::{ListingChoices, market_icon, riven_listing_payload, riven_listing_update};
+use wf_core::{
+    ListingChoices, market_icon, market_name, riven_listing_payload, riven_listing_update,
+};
 use wf_market::{
     Auction, CreateOrderRequest, ItemListings, Order, OrderType, Platform, UpdateAuctionRequest,
     UpdateOrderRequest, UserStatus, order_rejection,
@@ -101,7 +103,7 @@ pub async fn market_logout<R: Runtime>(app: AppHandle<R>, state: Shared<'_>) -> 
     status.market_account = None;
     status.market_unread = 0;
     drop(status);
-    market::remember_listings(&state, Some(Vec::new()), Some(Vec::new()));
+    state.listings.remember(&state.core, Some(&[]), Some(&[]));
     runtime::emit(&app, runtime::STATUS_UPDATED, state.status_snapshot());
     Ok(())
 }
@@ -113,7 +115,7 @@ pub async fn market_my_orders(state: Shared<'_>) -> CommandResult<Vec<OrderRow>>
     let rows = market::order_rows(&state, &orders)
         .await
         .ok_or_else(unlisted_items)?;
-    market::remember_listings(&state, Some(rows.clone()), None);
+    state.listings.remember(&state.core, Some(&rows), None);
     Ok(rows)
 }
 
@@ -145,7 +147,7 @@ pub async fn market_post_order<R: Runtime>(
         })?;
     let orders = state.market().orders_my().await?;
     let rows = market::order_rows(&state, &orders).await;
-    market::remember_listings(&state, rows.clone(), None);
+    state.listings.remember(&state.core, rows.as_deref(), None);
     runtime::emit(
         &app,
         runtime::MARKET_UPDATED,
@@ -287,15 +289,15 @@ pub async fn market_set_visibility(state: Shared<'_>, visible: bool) -> CommandR
 #[tauri::command]
 pub async fn market_items(state: Shared<'_>) -> CommandResult<Vec<MarketItem>> {
     let state = ready(&state).await?;
-    let table = market::item_table(&state)
+    let listed = market::market_items(&state)
         .await
         .ok_or_else(unlisted_items)?;
     let core = lock(&state.core);
-    let mut items: Vec<MarketItem> = table
+    let mut items: Vec<MarketItem> = listed
         .items()
         .iter()
         .map(|item| MarketItem {
-            name: market::english_name(item),
+            name: market_name(item).to_owned(),
             image_name: market_icon(core.catalog(), item),
             id: item.id.clone(),
             slug: item.slug.clone(),
@@ -351,7 +353,7 @@ pub async fn market_my_auctions(state: Shared<'_>) -> CommandResult<Vec<Auction>
         .map(|account| account.slug.clone())
         .ok_or_else(|| CommandError::from("Sign in to warframe.market first"))?;
     let auctions = state.market().auctions_my(&slug).await?;
-    market::remember_listings(&state, None, Some(auctions.clone()));
+    state.listings.remember(&state.core, None, Some(&auctions));
     Ok(auctions)
 }
 

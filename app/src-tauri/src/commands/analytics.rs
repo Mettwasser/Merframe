@@ -13,12 +13,12 @@ pub async fn market_movers(
     window: MarketWindow,
 ) -> CommandResult<Vec<MarketMover>> {
     let state = ready(&state).await?;
-    let table = market::item_table(&state)
+    let items = market::market_items(&state)
         .await
         .ok_or_else(unlisted_items)?;
     let turnover = state.prices.turnover(window);
     let core = lock(&state.core);
-    Ok(analytics::market_movers(&table, core.catalog(), &turnover))
+    Ok(analytics::market_movers(&items, core.catalog(), &turnover))
 }
 
 #[tauri::command]
@@ -27,10 +27,15 @@ pub async fn trade_analytics(
     since_ms: Option<i64>,
 ) -> CommandResult<TradeAnalytics> {
     let state = ready(&state).await?;
-    let table = market::item_table(&state)
+    let items = market::market_items(&state)
         .await
         .ok_or_else(unlisted_items)?;
     let core = lock(&state.core);
     let trades = core.store().trades(since(since_ms))?;
-    Ok(analytics::trade_analytics(&trades, &table, core.catalog()))
+    Ok(analytics::trade_analytics(
+        &trades,
+        &items,
+        core.items(),
+        core.catalog(),
+    ))
 }

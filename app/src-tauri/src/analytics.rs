@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
 
 use serde::Serialize;
-use wf_core::{Catalog, StoredTrade, Turnover, market_icon, traded_set};
+use wf_core::{Catalog, ItemTable, StoredTrade, Turnover, market_icon, market_name, traded_set};
 use wf_market::{Item, OrderType};
 
-use crate::market::{ItemTable, english_name};
-use crate::runtime::{listed_item, trade_side};
+use crate::market::MarketItems;
+use crate::runtime::trade_side;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -54,18 +54,18 @@ pub struct MarketMover {
 }
 
 pub fn market_movers(
-    table: &ItemTable,
+    items: &MarketItems,
     catalog: &Catalog,
     turnover: &HashMap<String, Turnover>,
 ) -> Vec<MarketMover> {
-    table
+    items
         .items()
         .iter()
         .filter_map(|item| {
             let turnover = turnover.get(&item.slug)?;
             Some(MarketMover {
                 slug: item.slug.clone(),
-                name: english_name(item),
+                name: market_name(item).to_owned(),
                 image_name: market_icon(catalog, item),
                 category: TradeCategory::of(item),
                 unit_price: turnover.unit_price,
@@ -113,20 +113,21 @@ fn add_traded(totals: &mut Vec<TradedTotal>, traded: TradedTotal) {
 
 pub fn trade_analytics(
     trades: &[StoredTrade],
+    items: &MarketItems,
     table: &ItemTable,
     catalog: &Catalog,
 ) -> TradeAnalytics {
     let mut analytics = TradeAnalytics::default();
     let mut categories: BTreeMap<TradeCategory, CategoryStatement> = BTreeMap::new();
     for stored in trades {
-        let Some((side, items, plat)) = trade_side(&stored.trade) else {
+        let Some((side, goods, plat)) = trade_side(&stored.trade) else {
             continue;
         };
-        let set = traded_set(catalog, items);
-        let Some(item) = set.as_ref().or(items.first()) else {
+        let set = traded_set(catalog, goods);
+        let Some(item) = set.as_ref().or(goods.first()) else {
             continue;
         };
-        let listed = listed_item(table, &item.name);
+        let listed = items.listed(table, &item.name);
         let category = match listed {
             Some(listed) => TradeCategory::of(listed),
             None if item.rank.is_some() => TradeCategory::Riven,
@@ -134,7 +135,10 @@ pub fn trade_analytics(
         };
         let value = i64::from(plat);
         let total = TradedTotal {
-            name: listed.map_or_else(|| item.name.clone(), english_name),
+            name: listed.map_or_else(
+                || item.name.clone(),
+                |listed| market_name(listed).to_owned(),
+            ),
             image_name: listed.and_then(|listed| market_icon(catalog, listed)),
             amount: item.count,
             value,
@@ -177,8 +181,18 @@ mod tests {
         {"id":"7","slug":"ayatan_anasa_sculpture","gameRef":"","tags":["sculpture"],"i18n":{"en":{"name":"Ayatan Anasa Sculpture","icon":"","thumb":""}}}
     ]"#;
 
-    fn table() -> ItemTable {
-        ItemTable::new(serde_json::from_str(ITEMS).unwrap(), Utc::now())
+    fn listings() -> Vec<Item> {
+        serde_json::from_str(ITEMS).unwrap()
+    }
+
+    fn market_items() -> MarketItems {
+        MarketItems::new(listings(), Utc::now())
+    }
+
+    fn item_table() -> ItemTable {
+        let mut table = ItemTable::build(&catalog());
+        table.index_market(&listings());
+        table
     }
 
     fn catalog() -> Catalog {
@@ -213,8 +227,8 @@ mod tests {
 
     #[test]
     fn categories_from_market_tags() {
-        let table = table();
-        let categories: Vec<TradeCategory> = table.items().iter().map(TradeCategory::of).collect();
+        let items = market_items();
+        let categories: Vec<TradeCategory> = items.items().iter().map(TradeCategory::of).collect();
         assert_eq!(
             categories,
             [
@@ -251,7 +265,7 @@ mod tests {
                 },
             ),
         ]);
-        let movers = market_movers(&table(), &catalog(), &turnover);
+        let movers = market_movers(&market_items(), &catalog(), &turnover);
         assert_eq!(movers.len(), 1);
         assert_eq!(movers[0].name, "Braton Prime Set");
         assert_eq!(movers[0].category, TradeCategory::Set);
@@ -289,7 +303,7 @@ mod tests {
                 0,
             ),
         ];
-        let analytics = trade_analytics(&trades, &table(), &catalog());
+        let analytics = trade_analytics(&trades, &market_items(), &item_table(), &catalog());
         let categories: Vec<_> = analytics
             .categories
             .iter()

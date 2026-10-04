@@ -15,9 +15,9 @@ mod relics;
 mod upgrades;
 
 pub(crate) use misc::misc;
-pub(crate) use parts::{parts, sets};
+pub(crate) use parts::{complete_sets, held_parts, parts, sets};
 pub(crate) use relics::relics;
-pub(crate) use upgrades::{arcanes, mods};
+pub(crate) use upgrades::{UpgradeKind, arcanes, mods, upgrade_kind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct ItemStatus {

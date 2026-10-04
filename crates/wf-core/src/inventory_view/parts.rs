@@ -5,7 +5,7 @@ use wf_data::{Component, Item};
 use super::misc::is_landing_craft_part;
 use super::{ItemStatus, PartRow, PartSet, SetComponent, SetRow};
 use crate::catalog::{Catalog, Stock, is_prime};
-use crate::identity::{ItemTable, Variant};
+use crate::identity::{ItemRecord, ItemTable, Variant};
 use crate::prices::Prices;
 use crate::view::View;
 
@@ -126,31 +126,53 @@ fn set_is_complete(stock: &Stock, item: &Item) -> bool {
             .all(|component| stock.count(&component.unique_name) >= i64::from(component.item_count))
 }
 
-fn set_components(items: &ItemTable, item: &Item, stock: &Stock) -> Vec<SetComponent> {
+pub(crate) struct HeldPart<'a> {
+    component: &'a Component,
+    record: &'a ItemRecord,
+    owned: i64,
+    required: i64,
+}
+
+impl HeldPart<'_> {
+    fn enough(&self) -> bool {
+        self.owned >= self.required
+    }
+}
+
+pub(crate) fn held_parts<'a>(
+    items: &'a ItemTable,
+    item: &'a Item,
+    stock: &Stock,
+) -> Vec<HeldPart<'a>> {
     set_parts(item)
         .filter_map(|component| {
-            let part = items.part(item, component)?;
-            let owned = stock.count(&component.unique_name);
-            let required = i64::from(component.item_count);
-            Some(SetComponent {
-                unique_name: component.unique_name.clone(),
-                name: part.name.clone(),
-                image_name: part.image_name.clone(),
-                market_slug: part.market_slug.clone().unwrap_or_default(),
-                owned,
-                required,
-                enough: owned >= required,
+            Some(HeldPart {
+                component,
+                record: items.part(item, component)?,
+                owned: stock.count(&component.unique_name),
+                required: i64::from(component.item_count),
             })
         })
         .collect()
 }
 
-fn set_ducats(catalog: &Catalog, components: &[SetComponent]) -> u32 {
-    components
+pub(crate) fn complete_sets(parts: &[HeldPart]) -> i64 {
+    if !parts.iter().all(HeldPart::enough) {
+        return 0;
+    }
+    parts
+        .iter()
+        .map(|part| part.owned / part.required.max(1))
+        .min()
+        .unwrap_or(0)
+}
+
+fn set_ducats(catalog: &Catalog, parts: &[HeldPart]) -> u32 {
+    parts
         .iter()
         .filter_map(|part| {
             let ducats = catalog
-                .component(&part.unique_name)
+                .component(&part.component.unique_name)
                 .and_then(|(_, component)| component.ducats)?;
             u32::try_from(part.required)
                 .ok()
@@ -171,24 +193,16 @@ pub(crate) fn sets(view: &View) -> Vec<SetRow> {
     let mut rows: Vec<SetRow> = catalog
         .items()
         .filter_map(|item| {
-            let components = set_components(items, item, &account.stock);
-            if components.len() <= 1 {
+            let parts = held_parts(items, item, &account.stock);
+            if parts.len() <= 1 {
                 return None;
             }
-            let owned_parts = components.iter().filter(|part| part.enough).count();
+            let owned_parts = parts.iter().filter(|part| part.enough()).count();
             if owned_parts == 0 {
                 return None;
             }
-            let complete = owned_parts == components.len();
-            let count = if complete {
-                components
-                    .iter()
-                    .map(|part| part.owned / part.required.max(1))
-                    .min()
-                    .unwrap_or(0)
-            } else {
-                0
-            };
+            let complete = owned_parts == parts.len();
+            let count = complete_sets(&parts);
             let set = items.variant(&item.unique_name, Variant::Set)?;
             let slug = set.market_slug.as_deref().unwrap_or_default();
             Some(SetRow {
@@ -196,7 +210,7 @@ pub(crate) fn sets(view: &View) -> Vec<SetRow> {
                 unique_name: item.unique_name.clone(),
                 image_name: set.image_name.clone(),
                 owned_parts,
-                total_parts: components.len(),
+                total_parts: parts.len(),
                 count,
                 complete,
                 item: ItemStatus {
@@ -207,12 +221,23 @@ pub(crate) fn sets(view: &View) -> Vec<SetRow> {
                 prices: Prices {
                     sell: prices.plat(slug),
                     buy: prices.buy_plat(slug),
-                    ducats: Some(set_ducats(catalog, &components)),
+                    ducats: Some(set_ducats(catalog, &parts)),
                 },
                 orders: listings.orders_for(slug),
                 market_slug: slug.to_owned(),
                 favourite: favourites.contains(&item.unique_name),
-                components,
+                components: parts
+                    .iter()
+                    .map(|part| SetComponent {
+                        unique_name: part.component.unique_name.clone(),
+                        name: part.record.name.clone(),
+                        image_name: part.record.image_name.clone(),
+                        market_slug: part.record.market_slug.clone().unwrap_or_default(),
+                        owned: part.owned,
+                        required: part.required,
+                        enough: part.enough(),
+                    })
+                    .collect(),
             })
         })
         .collect();

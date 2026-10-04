@@ -1,11 +1,9 @@
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
-use wf_core::{
-    Catalog, InventoryTab, MarketListings, MarketStock, ModRow, PriceSource, SetRow, market_icon,
-};
+use wf_core::{Core, ItemRecord, ItemTable, MarketListings, PriceSource, market_icon, market_name};
 use wf_market::{Auction, Item, Order, OrderType, UserStatus};
 
 use crate::state::{AppState, lock, read, write};
@@ -76,13 +74,13 @@ impl Presence {
     }
 }
 
-pub struct ItemTable {
+pub struct MarketItems {
     items: Vec<Item>,
     by_id: HashMap<String, usize>,
     fetched_at: DateTime<Utc>,
 }
 
-impl ItemTable {
+impl MarketItems {
     pub(crate) fn new(items: Vec<Item>, fetched_at: DateTime<Utc>) -> Self {
         let by_id = items
             .iter()
@@ -100,37 +98,35 @@ impl ItemTable {
         now.signed_duration_since(self.fetched_at) > Duration::hours(12)
     }
 
-    fn get(&self, id: &str) -> Option<&Item> {
-        self.by_id.get(id).map(|index| &self.items[*index])
-    }
-
     pub fn items(&self) -> &[Item] {
         &self.items
     }
 
-    pub fn by_name(&self, name: &str) -> Option<&Item> {
-        self.items.iter().find(|item| {
-            item.i18n
-                .get("en")
-                .is_some_and(|localized| wf_core::same_part(name, &localized.name))
-        })
+    pub fn get(&self, id: &str) -> Option<&Item> {
+        self.by_id.get(id).map(|index| &self.items[*index])
+    }
+
+    pub fn listed(&self, table: &ItemTable, dialog_name: &str) -> Option<&Item> {
+        self.get(table.listing_id(dialog_name)?)
     }
 }
 
-pub async fn item_table(state: &Arc<AppState>) -> Option<Arc<ItemTable>> {
+pub async fn market_items(state: &Arc<AppState>) -> Option<Arc<MarketItems>> {
     let mut cache = state.market_items.lock().await;
     let cached = cache.clone();
     let now = Utc::now();
-    if let Some(table) = &cached
-        && !table.stale(now)
+    if let Some(items) = &cached
+        && !items.stale(now)
     {
         return cached;
     }
     match state.market().items().await {
         Ok(items) => {
-            let table = Arc::new(ItemTable::new(items, now));
-            *cache = Some(Arc::clone(&table));
-            Some(table)
+            let indexed = lock(&state.core).index_market(&items);
+            tracing::debug!(indexed, "Market slugs indexed by game reference");
+            let items = Arc::new(MarketItems::new(items, now));
+            *cache = Some(Arc::clone(&items));
+            Some(items)
         }
         Err(error) => {
             tracing::warn!(
@@ -139,77 +135,6 @@ pub async fn item_table(state: &Arc<AppState>) -> Option<Arc<ItemTable>> {
                 "Item list request to warframe.market failed",
             );
             cached
-        }
-    }
-}
-
-pub fn english_name(item: &Item) -> String {
-    match item.i18n.get("en") {
-        Some(entry) => entry.name.clone(),
-        None => item.slug.clone(),
-    }
-}
-
-#[derive(Default)]
-pub struct Holdings<'a> {
-    stock: Option<MarketStock<'a>>,
-    sets: &'a [SetRow],
-    mods: &'a [ModRow],
-    arcanes: &'a [ModRow],
-}
-
-fn unveiled(name: &str) -> &str {
-    name.strip_suffix(" (Veiled)").unwrap_or(name)
-}
-
-fn owned_upgrades(rows: &[ModRow], item: &Item, rank: Option<u32>) -> i64 {
-    let listed = english_name(item);
-    rows.iter()
-        .filter(|row| {
-            unveiled(&row.name).eq_ignore_ascii_case(unveiled(&listed))
-                || row.unique_name == item.game_ref
-        })
-        .filter(|row| rank.is_none_or(|rank| row.rank.unwrap_or(0) == rank))
-        .map(|row| row.count)
-        .sum()
-}
-
-impl<'a> Holdings<'a> {
-    pub fn of(stock: Option<MarketStock<'a>>, tab: &'a InventoryTab) -> Self {
-        Self {
-            stock,
-            sets: &tab.sets,
-            mods: &tab.mods,
-            arcanes: &tab.arcanes,
-        }
-    }
-
-    fn count(
-        &self,
-        category: MarketCategory,
-        item: &Item,
-        order: &Order,
-        take_rank_into_account: bool,
-    ) -> i64 {
-        let rank = order.rank.unwrap_or(0);
-        match category {
-            MarketCategory::Parts => self.stock.map_or(0, |stock| stock.part(item)),
-            MarketCategory::Misc => self
-                .stock
-                .map_or(0, |stock| stock.misc(item, &english_name(item))),
-            MarketCategory::Sets => self
-                .sets
-                .iter()
-                .filter(|row| row.market_slug == item.slug)
-                .map(|row| row.count)
-                .sum(),
-            MarketCategory::Mods => {
-                owned_upgrades(self.mods, item, take_rank_into_account.then_some(rank))
-            }
-            MarketCategory::Arcanes => owned_upgrades(self.arcanes, item, Some(rank)),
-            MarketCategory::Relics => self.stock.map_or(0, |stock| {
-                stock.relic(item, order.subtype.as_deref().unwrap_or_default())
-            }),
         }
     }
 }
@@ -246,16 +171,21 @@ pub struct OrderRow {
 pub fn order_row(
     order: &Order,
     item: &Item,
-    catalog: &Catalog,
-    holdings: &Holdings,
+    record: &ItemRecord,
+    core: &Core,
     prices: &dyn PriceSource,
     take_rank_into_account: bool,
 ) -> OrderRow {
     let category = MarketCategory::of(item);
-    let name = english_name(item);
-    let owned = holdings.count(category, item, order, take_rank_into_account);
-    let ranked = matches!(category, MarketCategory::Mods | MarketCategory::Arcanes);
+    let name = market_name(item);
     let rank = order.rank.unwrap_or(0);
+    let counted_rank = match category {
+        MarketCategory::Mods => take_rank_into_account.then_some(rank),
+        MarketCategory::Arcanes => Some(rank),
+        _ => None,
+    };
+    let owned = core.market_owned(record, name, counted_rank, order.subtype.as_deref());
+    let ranked = matches!(category, MarketCategory::Mods | MarketCategory::Arcanes);
     let mut lowest = prices.plat(&item.slug);
     let mut from_rank_zero = ranked && rank > 0;
     if from_rank_zero
@@ -270,14 +200,14 @@ pub fn order_row(
     }
     let show_warning = order.order_type == OrderType::Sell
         && owned < i64::from(order.quantity)
-        && !is_necramech_set(category, &name);
+        && !is_necramech_set(category, name);
     OrderRow {
         id: order.id.clone(),
         order_type: order.order_type,
         item_id: order.item_id.clone(),
         slug: item.slug.clone(),
-        name,
-        image_name: market_icon(catalog, item),
+        name: name.to_owned(),
+        image_name: market_icon(core.catalog(), item),
         category,
         platinum: order.platinum,
         quantity: order.quantity,
@@ -294,66 +224,60 @@ pub fn order_row(
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct Held {
+pub struct OwnListings {
     pub orders: Vec<OrderRow>,
     pub auctions: Vec<Auction>,
 }
 
 #[derive(Default)]
 pub struct Listings {
-    held: RwLock<Held>,
+    own: RwLock<OwnListings>,
 }
 
 impl Listings {
-    pub fn held(&self) -> Held {
-        read(&self.held).clone()
+    pub fn current(&self) -> OwnListings {
+        read(&self.own).clone()
     }
 
-    fn remember(&self, orders: Option<Vec<OrderRow>>, auctions: Option<Vec<Auction>>) -> Held {
-        let mut held = write(&self.held);
+    pub fn remember(
+        &self,
+        core: &Mutex<Core>,
+        orders: Option<&[OrderRow]>,
+        auctions: Option<&[Auction]>,
+    ) {
+        let mut own = write(&self.own);
         if let Some(orders) = orders {
-            held.orders = orders;
+            own.orders = orders.to_vec();
         }
         if let Some(auctions) = auctions {
-            held.auctions = auctions;
+            own.auctions = auctions.to_vec();
         }
-        held.clone()
+        let listings = MarketListings::new(
+            own.orders
+                .iter()
+                .map(|row| (row.slug.as_str(), row.order_type)),
+            &own.auctions,
+        );
+        drop(own);
+        lock(core).set_market_listings(listings);
     }
-}
-
-pub fn remember_listings(
-    state: &AppState,
-    orders: Option<Vec<OrderRow>>,
-    auctions: Option<Vec<Auction>>,
-) {
-    let held = state.listings.remember(orders, auctions);
-    lock(&state.core).set_market_listings(MarketListings::new(
-        held.orders
-            .iter()
-            .map(|row| (row.slug.as_str(), row.order_type)),
-        &held.auctions,
-    ));
 }
 
 pub async fn order_rows(state: &Arc<AppState>, orders: &[Order]) -> Option<Vec<OrderRow>> {
-    let table = item_table(state).await?;
+    let items = market_items(state).await?;
     let take_rank_into_account = read(&state.settings).market.take_rank_into_account;
     let core = lock(&state.core);
-    let tab = core.inventory_tab();
-    let holdings = tab
-        .as_ref()
-        .map(|tab| Holdings::of(core.market_stock(), tab))
-        .unwrap_or_default();
     Some(
         orders
             .iter()
             .filter_map(|order| {
-                let item = table.get(&order.item_id)?;
+                let item = items.get(&order.item_id)?;
+                let record = core.items().by_market_id(&order.item_id)?;
                 Some(order_row(
                     order,
                     item,
-                    core.catalog(),
-                    &holdings,
+                    record,
+                    &core,
                     state.prices.as_ref(),
                     take_rank_into_account,
                 ))
@@ -364,15 +288,26 @@ pub async fn order_rows(state: &Arc<AppState>, orders: &[Order]) -> Option<Vec<O
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeMap, HashMap};
+    use std::collections::HashMap;
 
     use chrono::{DateTime, Utc};
-    use wf_core::{
-        InventoryTab, ItemStatus, ModRow, PlacedOrders, PriceSource, Prices, SetRow, UpgradePrices,
-    };
+    use serde_json::{Value, json};
+    use wf_core::{AlertSettings, Catalog, Core, PriceCache, PriceSource, Store};
     use wf_market::{Item, ItemLocalization, Order, OrderType};
 
     use super::*;
+
+    const INVENTORY: &str = include_str!("../../../fixtures/inventory.json");
+    const ITEMS: &str = include_str!("../../../crates/wf-data/tests/fixtures/items.json");
+    const UPGRADES: &str = include_str!("../../../fixtures/upgrade_items.json");
+    const RELICS: &str = include_str!("../../../crates/wf-data/tests/fixtures/relics.json");
+    const COMPONENTS: &str = include_str!("../../../crates/wf-data/tests/fixtures/components.json");
+
+    const PRIMED_CONTINUITY: &str =
+        "/Lotus/Upgrades/Mods/Warframe/Expert/AvatarAbilityDurationModExpert";
+    const ENERGIZE: &str =
+        "/Lotus/Upgrades/CosmeticEnhancers/Utility/GolemArcaneRadialEnergyOnEnergyPickup";
+    const BRATON: &str = "/Lotus/Types/Recipes/Weapons/WeaponParts/BratonPrime";
 
     struct TestPrices;
 
@@ -413,20 +348,33 @@ mod tests {
         }
     }
 
-    fn order(item_id: &str, quantity: u32, rank: Option<u32>, subtype: Option<&str>) -> Order {
+    fn listed(
+        slug: &str,
+        name: &str,
+        game_ref: &str,
+        tags: &[&str],
+        max_rank: Option<u32>,
+    ) -> Item {
+        Item {
+            game_ref: game_ref.to_owned(),
+            ..item(slug, name, tags, max_rank)
+        }
+    }
+
+    fn order(slug: &str, quantity: u32, rank: Option<u32>) -> Order {
         Order {
-            id: format!("order-{item_id}"),
+            id: format!("order-{slug}"),
             order_type: OrderType::Sell,
             platinum: 20,
             quantity,
             per_trade: None,
-            subtype: subtype.map(str::to_owned),
+            subtype: None,
             rank,
             amber_stars: None,
             cyan_stars: None,
             visible: true,
             updated_at: moment(),
-            item_id: item_id.to_owned(),
+            item_id: format!("id-{slug}"),
             user: None,
         }
     }
@@ -437,6 +385,163 @@ mod tests {
 
     fn moment() -> DateTime<Utc> {
         DateTime::from_timestamp(1_757_410_800, 0).unwrap()
+    }
+
+    fn market_list() -> Vec<Item> {
+        vec![
+            listed(
+                "primed_continuity",
+                "Primed Continuity",
+                PRIMED_CONTINUITY,
+                &["mod"],
+                Some(10),
+            ),
+            listed(
+                "arcane_energize",
+                "Arcane Energize",
+                ENERGIZE,
+                &["arcane_enhancement"],
+                Some(5),
+            ),
+            listed(
+                "braton_prime_set",
+                "Braton Prime Set",
+                "/Lotus/Weapons/Tenno/Rifle/BratonPrime",
+                &["set", "prime"],
+                None,
+            ),
+            listed(
+                "braton_prime_barrel",
+                "Braton Prime Barrel",
+                &format!("{BRATON}Barrel"),
+                &["component", "prime"],
+                None,
+            ),
+            item(
+                "trinity_prime_systems_blueprint",
+                "Trinity Prime Systems Blueprint",
+                &["component", "prime", "blueprint"],
+                None,
+            ),
+            item("axi_a1_relic", "Axi A1 Relic", &["relic"], None),
+            item(
+                "rifle_riven_mod_(veiled)",
+                "Rifle Riven Mod (Veiled)",
+                &["mod", "riven_mod"],
+                None,
+            ),
+            item("voidrig_set", "Voidrig Set", &["set"], None),
+            item(
+                "legendary_fusion_core",
+                "Legendary Fusion Core",
+                &["fusion core"],
+                None,
+            ),
+            item(
+                "ancient_fusion_core",
+                "Ancient Fusion Core",
+                &["fusion core", "legendary"],
+                None,
+            ),
+            item(
+                "nihils_oubliette_key",
+                "Nihil's Oubliette (Key)",
+                &["key"],
+                None,
+            ),
+            item("forma_blueprint", "Forma Blueprint", &["misc"], None),
+        ]
+    }
+
+    fn catalog() -> Catalog {
+        let mut items: Vec<Value> = serde_json::from_str(ITEMS).unwrap();
+        items.extend(serde_json::from_str::<Vec<Value>>(UPGRADES).unwrap());
+        Catalog::from_json(&Value::from(items).to_string(), RELICS, COMPONENTS).unwrap()
+    }
+
+    fn inventory() -> String {
+        let mut inventory: Value = serde_json::from_str(INVENTORY).unwrap();
+        inventory["RawUpgrades"] = json!([
+            { "ItemType": PRIMED_CONTINUITY, "ItemCount": 3 },
+            { "ItemType": ENERGIZE, "ItemCount": 4 },
+        ]);
+        inventory["Upgrades"] = json!([
+            {
+                "ItemType": PRIMED_CONTINUITY,
+                "UpgradeFingerprint": "{\"lvl\":10}",
+                "ItemId": { "$oid": format!("{:024x}", 0) },
+            },
+            {
+                "ItemType": ENERGIZE,
+                "UpgradeFingerprint": "{\"lvl\":5}",
+                "ItemId": { "$oid": format!("{:024x}", 1) },
+            },
+        ]);
+        for (key, item_type) in [
+            ("MiscItems", format!("{BRATON}Barrel")),
+            ("MiscItems", format!("{BRATON}Receiver")),
+            ("MiscItems", format!("{BRATON}Stock")),
+            (
+                "Recipes",
+                "/Lotus/Types/Recipes/Weapons/BratonPrimeBlueprint".to_owned(),
+            ),
+        ] {
+            if let Some(held) = inventory[key].as_array_mut() {
+                held.push(json!({ "ItemType": item_type, "ItemCount": 1 }));
+            }
+        }
+        inventory.to_string()
+    }
+
+    struct Market {
+        core: Core,
+        items: MarketItems,
+    }
+
+    impl Market {
+        fn new() -> Self {
+            let mut core = Core::new(
+                Store::in_memory().unwrap(),
+                catalog(),
+                Arc::new(PriceCache::default()),
+                AlertSettings::default(),
+            )
+            .unwrap();
+            core.ingest_inventory(&inventory(), moment()).unwrap();
+            let items = market_list();
+            core.index_market(&items);
+            Self {
+                core,
+                items: MarketItems::new(items, moment()),
+            }
+        }
+
+        fn row(&self, wanted: &Order, take_rank_into_account: bool) -> OrderRow {
+            let item = self.items.get(&wanted.item_id).unwrap();
+            order_row(
+                wanted,
+                item,
+                self.core.items().by_market_id(&item.id).unwrap(),
+                &self.core,
+                &TestPrices,
+                take_rank_into_account,
+            )
+        }
+
+        fn sell(&self, slug: &str, quantity: u32) -> OrderRow {
+            self.row(&order(slug, quantity, None), true)
+        }
+
+        fn owned(&self, slug: &str, rank: Option<u32>, take_rank_into_account: bool) -> i64 {
+            self.row(&order(slug, 1, rank), take_rank_into_account)
+                .owned
+        }
+
+        fn listed(&self, dialog_name: &str) -> Option<&str> {
+            self.items
+                .listed(self.core.items(), dialog_name)
+                .map(|item| item.slug.as_str())
+        }
     }
 
     #[test]
@@ -453,13 +558,13 @@ mod tests {
     }
 
     #[test]
-    fn item_table_lookup() {
+    fn market_items_lookup() {
         let first = item("braton_prime_set", "Braton Prime Set", &["set"], None);
         let second = item("primed_continuity", "Primed Continuity", &["mod"], Some(10));
-        let table = ItemTable::new(vec![first.clone(), second.clone()], moment());
+        let items = MarketItems::new(vec![first, second], moment());
 
         assert_eq!(
-            table
+            items
                 .items()
                 .iter()
                 .map(|item| item.slug.as_str())
@@ -467,115 +572,17 @@ mod tests {
             ["braton_prime_set", "primed_continuity"]
         );
         assert_eq!(
-            table
+            items
                 .get("id-primed_continuity")
                 .map(|item| item.slug.as_str()),
             Some("primed_continuity")
         );
-    }
-
-    fn upgrade(name: &str, unique_name: &str, rank: Option<u32>, count: i64) -> ModRow {
-        ModRow {
-            name: name.to_owned(),
-            unique_name: unique_name.to_owned(),
-            image_name: None,
-            count,
-            rank,
-            max_rank: None,
-            prices: UpgradePrices {
-                sell: None,
-                sell_max_rank: None,
-                is_floor: false,
-                buy: None,
-            },
-            equipped_in: Vec::new(),
-            rarity: None,
-            prime: false,
-            market_slug: String::new(),
-            favourite: false,
-            orders: PlacedOrders::default(),
-        }
-    }
-
-    const CLASHING_FOREST: &str = "/Lotus/Weapons/Tenno/Melee/MeleeTrees/StaffCmbOneMeleeTree";
-    const VEILED_RIFLE: &str = "/Lotus/Upgrades/Mods/Randomized/LotusRifleRandomModRare";
-
-    fn tab() -> InventoryTab {
-        InventoryTab {
-            parts: Vec::new(),
-            mods: vec![
-                upgrade(
-                    "Primed Continuity",
-                    "/Lotus/Upgrades/Mods/Warframe/Expert/AvatarPowerDurationModExpert",
-                    None,
-                    3,
-                ),
-                upgrade(
-                    "Primed Continuity",
-                    "/Lotus/Upgrades/Mods/Warframe/Expert/AvatarPowerDurationModExpert",
-                    Some(10),
-                    1,
-                ),
-                upgrade(
-                    "Fear Sense",
-                    "/Lotus/Types/Friendly/Pets/CatbrowPetPrecepts/CatbrowTremorSensePrecept",
-                    None,
-                    25,
-                ),
-                upgrade("Staff Cmb One Melee Tree", CLASHING_FOREST, None, 158),
-                upgrade("Staff Cmb One Melee Tree", CLASHING_FOREST, Some(3), 1),
-                upgrade("Rifle Riven Mod (Veiled)", VEILED_RIFLE, Some(0), 2),
-                upgrade(
-                    "Rifle Riven Mod (Veiled)",
-                    "/Lotus/Upgrades/Mods/Randomized/RawRifleRandomMod",
-                    Some(0),
-                    5,
-                ),
-            ],
-            arcanes: vec![
-                upgrade(
-                    "Arcane Energize",
-                    "/Lotus/Upgrades/CosmeticEnhancers/Utility/EnergyOnEnergyPickup",
-                    None,
-                    4,
-                ),
-                upgrade(
-                    "Arcane Energize",
-                    "/Lotus/Upgrades/CosmeticEnhancers/Utility/EnergyOnEnergyPickup",
-                    Some(5),
-                    1,
-                ),
-            ],
-            relics: Vec::new(),
-            misc: Vec::new(),
-            sets: vec![SetRow {
-                set_name: "Mirage Prime Set".to_owned(),
-                unique_name: "mirage_prime".to_owned(),
-                image_name: None,
-                owned_parts: 4,
-                total_parts: 4,
-                count: 1,
-                complete: true,
-                item: ItemStatus {
-                    built: false,
-                    mastered: true,
-                },
-                vault: None,
-                prices: Prices::default(),
-                market_slug: "mirage_prime_set".to_owned(),
-                favourite: false,
-                orders: PlacedOrders::default(),
-                components: Vec::new(),
-            }],
-            totals: BTreeMap::new(),
-        }
+        assert!(items.get("id-braton_prime_barrel").is_none());
     }
 
     #[test]
     fn presence_follows_game() {
         use wf_market::UserStatus;
-
-        use super::*;
 
         let untouched = Presence::default();
         assert_eq!(untouched.wanted(true), None);
@@ -663,75 +670,57 @@ mod tests {
 
     #[test]
     fn oversold_sell_order_flagged() {
-        let tab = tab();
-        let holdings = Holdings::of(None, &tab);
-        let prices = TestPrices;
-        let set = item("mirage_prime_set", "Mirage Prime Set", &["set"], None);
-        let row = order_row(
-            &order(&set.id, 1, None, None),
-            &set,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        );
+        let market = Market::new();
+        let row = market.sell("braton_prime_set", 1);
         assert_eq!(row.owned, 1);
         assert!(!row.show_warning);
 
-        let row = order_row(
-            &order(&set.id, 2, None, None),
-            &set,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        );
+        let row = market.sell("braton_prime_set", 2);
         assert_eq!(row.owned, 1);
         assert!(row.show_warning);
     }
 
     #[test]
     fn buy_order_not_flagged() {
-        let tab = tab();
-        let holdings = Holdings::of(None, &tab);
-        let prices = TestPrices;
-        let set = item("mirage_prime_set", "Mirage Prime Set", &["set"], None);
-        let mut wanted = order(&set.id, 9, None, None);
+        let market = Market::new();
+        let mut wanted = order("braton_prime_set", 9, None);
         wanted.order_type = OrderType::Buy;
-        let row = order_row(&wanted, &set, &empty_catalog(), &holdings, &prices, true);
+        let row = market.row(&wanted, true);
         assert_eq!(row.owned, 1);
         assert!(!row.show_warning);
     }
 
     #[test]
     fn necramech_set_never_flagged() {
-        let set = item("voidrig_set", "Voidrig Set", &["set"], None);
-        let row = order_row(
-            &order(&set.id, 1, None, None),
-            &set,
-            &empty_catalog(),
-            &Holdings::default(),
-            &TestPrices,
-            true,
-        );
+        let market = Market::new();
+        let row = market.sell("voidrig_set", 1);
         assert_eq!(row.owned, 0);
         assert!(!row.show_warning);
     }
 
     #[test]
     fn nothing_owned_without_an_inventory() {
-        let holdings = Holdings::default();
-        let barrel = item(
+        let mut core = Core::new(
+            Store::in_memory().unwrap(),
+            catalog(),
+            Arc::new(PriceCache::default()),
+            AlertSettings::default(),
+        )
+        .unwrap();
+        let barrel = listed(
             "braton_prime_barrel",
             "Braton Prime Barrel",
+            &format!("{BRATON}Barrel"),
             &["component"],
             None,
         );
+        core.index_market(std::slice::from_ref(&barrel));
+        let record = core.items().by_market_id(&barrel.id).unwrap();
         let row = order_row(
-            &order(&barrel.id, 1, None, None),
+            &order("braton_prime_barrel", 1, None),
             &barrel,
-            &empty_catalog(),
-            &holdings,
+            record,
+            &core,
             &TestPrices,
             true,
         );
@@ -741,183 +730,96 @@ mod tests {
 
     #[test]
     fn mod_rank_counting_setting() {
-        let tab = tab();
-        let holdings = Holdings::of(None, &tab);
-        let prices = TestPrices;
-        let mod_item = item("primed_continuity", "Primed Continuity", &["mod"], Some(10));
-
-        let ranked = order_row(
-            &order(&mod_item.id, 1, Some(10), None),
-            &mod_item,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
+        let market = Market::new();
+        assert_eq!(market.owned("primed_continuity", Some(10), true), 1);
+        assert_eq!(market.owned("primed_continuity", Some(0), true), 3);
+        assert_eq!(
+            market.owned("primed_continuity", Some(10), false),
+            4,
+            "without the rank setting every rank counts"
         );
-        assert_eq!(ranked.owned, 1);
-        let unranked = order_row(
-            &order(&mod_item.id, 1, Some(0), None),
-            &mod_item,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        );
-        assert_eq!(unranked.owned, 3);
-
-        let pooled = order_row(
-            &order(&mod_item.id, 1, Some(10), None),
-            &mod_item,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            false,
-        );
-        assert_eq!(pooled.owned, 4);
-    }
-
-    fn owned(item: &Item, rank: Option<u32>) -> i64 {
-        order_row(
-            &order(&item.id, 1, rank, None),
-            item,
-            &empty_catalog(),
-            &Holdings::of(None, &tab()),
-            &TestPrices,
-            true,
-        )
-        .owned
+        assert_eq!(market.owned("primed_continuity", Some(0), false), 4);
     }
 
     #[test]
-    fn renamed_mod_counts_by_name() {
-        let fear_sense = item("sense_danger", "Fear Sense", &["mod"], Some(5));
-        assert_eq!(owned(&fear_sense, Some(0)), 25);
+    fn arcane_rank_always_counted() {
+        let market = Market::new();
+        assert_eq!(market.owned("arcane_energize", Some(5), false), 1);
+        assert_eq!(market.owned("arcane_energize", None, false), 4);
     }
 
     #[test]
-    fn mod_outside_the_export_counts_by_game_ref() {
-        let mut stance = item("clashing_forest", "Clashing Forest", &["mod"], Some(3));
-        stance.game_ref = CLASHING_FOREST.to_owned();
-        assert_eq!(owned(&stance, Some(0)), 158);
-        assert_eq!(owned(&stance, Some(3)), 1);
+    fn dialog_names_find_their_listing() {
+        let market = Market::new();
+        assert_eq!(
+            market.listed("Primed Continuity"),
+            Some("primed_continuity")
+        );
+        assert_eq!(
+            market.listed("primed continuity"),
+            Some("primed_continuity")
+        );
+        assert_eq!(
+            market.listed("Trinity Prime Systems"),
+            Some("trinity_prime_systems_blueprint")
+        );
+        assert_eq!(
+            market.listed("Axi A1 Relic [RADIANT]"),
+            Some("axi_a1_relic")
+        );
+        assert_eq!(market.listed("Braton Prime Set"), Some("braton_prime_set"));
+        assert_eq!(market.listed("Voidrig Set"), Some("voidrig_set"));
+        assert_eq!(market.listed("Forma"), Some("forma_blueprint"));
+        assert_eq!(
+            market.listed("Rifle Riven Mod"),
+            Some("rifle_riven_mod_(veiled)")
+        );
+        assert_eq!(
+            market.listed("Enter Nihil's Oubliette"),
+            Some("nihils_oubliette_key")
+        );
+        assert_eq!(
+            market.listed("Legendary Core"),
+            Some("legendary_fusion_core")
+        );
+        assert_eq!(market.listed("Ancient Core"), Some("ancient_fusion_core"));
+        assert_eq!(market.listed("Rubico Critacan"), None);
     }
 
     #[test]
-    fn veiled_riven_counts_both_stacks() {
-        let mut veiled = item(
-            "rifle_riven_mod_(veiled)",
-            "Rifle Riven Mod (Veiled)",
-            &["mod"],
-            None,
+    fn dialog_alias_needs_listing() {
+        let listing = item("legendary_core", "Legendary Core", &[], None);
+        let mut table = ItemTable::build(&empty_catalog());
+        table.index_market(std::slice::from_ref(&listing));
+        let items = MarketItems::new(vec![listing], moment());
+        assert!(
+            items.listed(&table, "Legendary Core").is_none(),
+            "the dialog name only ever means the fusion core listing"
         );
-        veiled.game_ref = VEILED_RIFLE.to_owned();
-        assert_eq!(owned(&veiled, None), 7);
-    }
-
-    #[test]
-    fn arcane_ranks_separate() {
-        let tab = tab();
-        let holdings = Holdings::of(None, &tab);
-        let prices = TestPrices;
-        let arcane = item(
-            "arcane_energize",
-            "Arcane Energize",
-            &["arcane_enhancement"],
-            Some(5),
-        );
-        let maxed = order_row(
-            &order(&arcane.id, 1, Some(5), None),
-            &arcane,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            false,
-        );
-        assert_eq!(maxed.owned, 1);
-        let unranked = order_row(
-            &order(&arcane.id, 1, None, None),
-            &arcane,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            false,
-        );
-        assert_eq!(unranked.owned, 4);
-    }
-
-    #[test]
-    fn set_order_counts_full_sets() {
-        let tab = tab();
-        let holdings = Holdings::of(None, &tab);
-        let prices = TestPrices;
-        let set = item("mirage_prime_set", "Mirage Prime Set", &["set"], None);
-        let row = order_row(
-            &order(&set.id, 1, None, None),
-            &set,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        );
-        assert_eq!(row.owned, 1);
-        assert_eq!(row.category, MarketCategory::Sets);
     }
 
     #[test]
     fn lowest_price_at_rank() {
-        let tab = tab();
-        let holdings = Holdings::of(None, &tab);
-        let prices = TestPrices;
-        let mod_item = item("primed_continuity", "Primed Continuity", &["mod"], Some(10));
+        let market = Market::new();
+        let row = |rank| market.row(&order("primed_continuity", 1, Some(rank)), true);
 
-        let unranked = order_row(
-            &order(&mod_item.id, 1, Some(0), None),
-            &mod_item,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        );
+        let unranked = row(0);
         assert_eq!(unranked.lowest, Some(120.0));
         assert!(!unranked.lowest_from_rank_zero);
 
-        let maxed = order_row(
-            &order(&mod_item.id, 1, Some(10), None),
-            &mod_item,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        );
+        let maxed = row(10);
         assert_eq!(maxed.lowest, Some(320.0));
         assert!(!maxed.lowest_from_rank_zero);
 
-        let halfway = order_row(
-            &order(&mod_item.id, 1, Some(5), None),
-            &mod_item,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        );
+        let halfway = row(5);
         assert_eq!(halfway.lowest, Some(120.0));
         assert!(halfway.lowest_from_rank_zero);
     }
 
     #[test]
     fn unpriced_item() {
-        let tab = tab();
-        let holdings = Holdings::of(None, &tab);
-        let prices = TestPrices;
-        let set = item("mirage_prime_set", "Mirage Prime Set", &["set"], None);
-        let row = order_row(
-            &order(&set.id, 1, None, None),
-            &set,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        );
+        let market = Market::new();
+        let row = market.sell("braton_prime_set", 1);
         assert_eq!(row.lowest, None);
         assert!(!row.lowest_from_rank_zero);
     }
@@ -928,35 +830,21 @@ mod tests {
             include_str!("../../../crates/wf-market/tests/fixtures/auctions_my.json");
         let auctions = wf_market::parse_v1_auctions(AUCTIONS).unwrap();
         let listings = Listings::default();
-        assert!(listings.held().orders.is_empty());
-        assert!(listings.held().auctions.is_empty());
+        assert!(listings.current().orders.is_empty());
+        assert!(listings.current().auctions.is_empty());
 
-        let tab = tab();
-        let holdings = Holdings::of(None, &tab);
-        let prices = TestPrices;
-        let barrel = item(
-            "braton_prime_barrel",
-            "Braton Prime Barrel",
-            &["component"],
-            None,
-        );
-        let rows = vec![order_row(
-            &order(&barrel.id, 1, None, None),
-            &barrel,
-            &empty_catalog(),
-            &holdings,
-            &prices,
-            true,
-        )];
-        listings.remember(Some(rows), Some(auctions));
-        assert_eq!(listings.held().orders.len(), 1);
-        assert_eq!(listings.held().auctions.len(), 2);
+        let market = Market::new();
+        let orders = vec![market.sell("braton_prime_barrel", 1)];
+        let core = Mutex::new(market.core);
+        listings.remember(&core, Some(&orders), Some(&auctions));
+        assert_eq!(listings.current().orders.len(), 1);
+        assert_eq!(listings.current().auctions.len(), 2);
 
-        listings.remember(Some(Vec::new()), None);
-        let held = listings.held();
-        assert!(held.orders.is_empty());
+        listings.remember(&core, Some(&[]), None);
+        let own = listings.current();
+        assert!(own.orders.is_empty());
         assert_eq!(
-            held.auctions.len(),
+            own.auctions.len(),
             2,
             "an order refresh leaves the riven auctions alone"
         );

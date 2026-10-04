@@ -17,7 +17,7 @@ use wf_worldstate::WorldState;
 use crate::auctions::AuctionCache;
 use crate::focus::GameFocus;
 use crate::images::ImageCache;
-use crate::market::{ItemTable, Listings, Presence};
+use crate::market::{Listings, MarketItems, Presence};
 use crate::overlay::{OverlaySupport, Overlays};
 use crate::settings::{self, MarketAccount, Settings};
 
@@ -125,7 +125,7 @@ pub type AppStateCell = SetOnce<Startup>;
 pub struct AppState {
     pub core: Mutex<Core>,
     pub market: RwLock<Arc<Client>>,
-    pub market_items: AsyncMutex<Option<Arc<ItemTable>>>,
+    pub market_items: AsyncMutex<Option<Arc<MarketItems>>>,
     pub market_activity: Mutex<Option<Instant>>,
     pub market_presence: RwLock<Presence>,
     pub market_presence_wake: Notify,
