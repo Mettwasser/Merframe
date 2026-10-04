@@ -1,14 +1,13 @@
 use std::collections::{BTreeMap, HashMap};
 
 use wf_data::{Component, Item};
-use wf_inventory::Inventory;
 
 use super::acquisition::{component_drops, node_market, wiki_url};
-use super::stock::tree_stock;
+use super::stock::FoundryStock;
 use super::tab::component_name;
 use super::{CraftDetails, CraftNode, CraftSummary, NeededItem};
-use crate::catalog::{Catalog, RECIPE_PREFIX, Stock};
-use crate::prices::PriceSource;
+use crate::catalog::{Catalog, RECIPE_PREFIX};
+use crate::view::View;
 
 const FARMED_TYPES: &[&str] = &[
     "Resource",
@@ -19,31 +18,14 @@ const FARMED_TYPES: &[&str] = &[
     "Pet Resource",
 ];
 
-struct Sources<'a> {
-    inventory: &'a Inventory,
-    catalog: &'a Catalog,
-    stock: Stock<'a>,
-    prices: &'a dyn PriceSource,
-}
-
-pub(crate) fn details(
-    inventory: &Inventory,
-    catalog: &Catalog,
-    prices: &dyn PriceSource,
-    unique_name: &str,
-) -> Option<CraftDetails> {
-    let item = catalog
+pub(crate) fn details(view: &View, unique_name: &str) -> Option<CraftDetails> {
+    let item = view
+        .catalog
         .item(unique_name)
         .filter(|item| item.components.is_some())?;
-    let sources = Sources {
-        inventory,
-        catalog,
-        stock: Stock::new(inventory),
-        prices,
-    };
-    let tree = craft_tree(&sources, item);
+    let tree = craft_tree(view, item);
     Some(CraftDetails {
-        summary: craft_summary(catalog, unique_name, &tree),
+        summary: craft_summary(view.catalog, unique_name, &tree),
         tree,
     })
 }
@@ -165,14 +147,14 @@ fn per_craft(catalog: &Catalog, unique_name: &str) -> i64 {
     }
 }
 
-fn craft_tree(sources: &Sources<'_>, item: &Item) -> Vec<CraftNode> {
+fn craft_tree(view: &View, item: &Item) -> Vec<CraftNode> {
     let mut path: Vec<&str> = Vec::new();
     let mut nodes: Vec<CraftNode> = item
         .components
         .as_deref()
         .unwrap_or_default()
         .iter()
-        .map(|component| node(sources, item, component, &mut path))
+        .map(|component| node(view, item, component, &mut path))
         .collect();
     let mut pool = MaterialPool::over(&nodes);
     for node in &mut nodes {
@@ -182,18 +164,21 @@ fn craft_tree(sources: &Sources<'_>, item: &Item) -> Vec<CraftNode> {
 }
 
 fn node<'a>(
-    sources: &Sources<'a>,
+    view: &View<'a>,
     parent: &Item,
     component: &'a Component,
     path: &mut Vec<&'a str>,
 ) -> CraftNode {
-    let Sources {
-        inventory, catalog, ..
-    } = *sources;
+    let View {
+        account,
+        catalog,
+        prices,
+        ..
+    } = *view;
     let recipe = if path.contains(&component.unique_name.as_str()) {
         None
     } else {
-        sub_recipe(inventory, catalog, &component.unique_name)
+        sub_recipe(&account.foundry, catalog, &component.unique_name)
     };
     let children = match recipe {
         None => Vec::new(),
@@ -204,7 +189,7 @@ fn node<'a>(
                 .as_deref()
                 .unwrap_or_default()
                 .iter()
-                .map(|child| node(sources, recipe, child, path))
+                .map(|child| node(view, recipe, child, path))
                 .collect();
             path.pop();
             children
@@ -219,15 +204,15 @@ fn node<'a>(
         wiki_url: wiki_url(catalog, &component.unique_name)
             .or_else(|| wiki_url(catalog, &parent.unique_name)),
         required: i64::from(component.item_count),
-        owned: tree_stock(inventory, &component.unique_name),
+        owned: account.foundry.in_tree(&component.unique_name),
         per_craft: per_craft(catalog, &component.unique_name),
         short_by: 0,
         crafts_queued: 0,
         craftable: false,
         stocked: false,
         covered: false,
-        drops: component_drops(catalog, &sources.stock, parent, component),
-        market: node_market(sources.prices, parent, component),
+        drops: component_drops(catalog, &account.stock, parent, component),
+        market: node_market(prices, parent, component),
         children,
     }
 }
@@ -308,32 +293,33 @@ fn farmed_resource(item: &Item) -> bool {
     item.category == "Resources" || FARMED_TYPES.contains(&item.item_type.as_str())
 }
 
-fn blueprint_in_stock(inventory: &Inventory, item: &Item) -> bool {
+fn blueprint_in_stock(stock: &FoundryStock, item: &Item) -> bool {
     item.components
         .iter()
         .flatten()
         .filter(|component| component.unique_name.ends_with("Blueprint"))
-        .any(|component| tree_stock(inventory, &component.unique_name) > 0)
+        .any(|component| stock.in_tree(&component.unique_name) > 0)
 }
 
 fn sub_recipe<'a>(
-    inventory: &Inventory,
+    stock: &FoundryStock,
     catalog: &'a Catalog,
     unique_name: &str,
 ) -> Option<&'a Item> {
     catalog
         .item(unique_name)
         .filter(|item| item.components.is_some())
-        .filter(|item| !farmed_resource(item) || blueprint_in_stock(inventory, item))
+        .filter(|item| !farmed_resource(item) || blueprint_in_stock(stock, item))
 }
 
 #[cfg(test)]
 mod tests {
+    use wf_inventory::Inventory;
+
     use super::*;
     use crate::catalog::{FORMA_ITEM, fixtures};
     use crate::foundry::NodeDrop;
-    use crate::foundry::stock::{component_stock, fill_slots};
-    use crate::prices::FixedPrices;
+    use crate::view::Fixture;
 
     const DUAL_KAMAS: &str = "/Lotus/Weapons/Tenno/Melee/DualKamas/DualKamas";
     const SINGLE_KAMA: &str = "/Lotus/Weapons/Tenno/Melee/DualKamas/SingleKama";
@@ -368,14 +354,8 @@ mod tests {
             .unwrap_or_default()
     }
 
-    fn tree_of(inventory: &Inventory, catalog: &Catalog, item: &Item) -> Vec<CraftNode> {
-        let sources = Sources {
-            inventory,
-            catalog,
-            stock: Stock::new(inventory),
-            prices: &FixedPrices::default(),
-        };
-        craft_tree(&sources, item)
+    fn tree_of(fixture: &Fixture, unique_name: &str) -> Vec<CraftNode> {
+        details(&fixture.view(), unique_name).unwrap().tree
     }
 
     #[test]
@@ -394,7 +374,8 @@ mod tests {
 
         let components = dual_kamas.components.as_deref().unwrap();
         let unfilled_kamas = |inventory: &Inventory| {
-            fill_slots(inventory, components)
+            FoundryStock::new(inventory)
+                .fill_slots(components)
                 .into_iter()
                 .zip(components)
                 .filter(|(slot, component)| component.unique_name == SINGLE_KAMA && !slot.satisfied)
@@ -406,20 +387,22 @@ mod tests {
         assert_eq!(unfilled_kamas(&none).len(), 2);
 
         let one = fixtures::inventory_stocked(&[("Melee", SINGLE_KAMA)], &[]);
-        assert_eq!(component_stock(&one, SINGLE_KAMA, "Kama"), 1);
+        assert_eq!(FoundryStock::new(&one).component(SINGLE_KAMA, "Kama"), 1);
         assert_eq!(unfilled_kamas(&one), [(0, 1)]);
 
         let two =
             fixtures::inventory_stocked(&[("Melee", SINGLE_KAMA), ("Melee", SINGLE_KAMA)], &[]);
-        assert_eq!(component_stock(&two, SINGLE_KAMA, "Kama"), 2);
+        assert_eq!(FoundryStock::new(&two).component(SINGLE_KAMA, "Kama"), 2);
         assert!(unfilled_kamas(&two).is_empty());
     }
 
     #[test]
     fn lens_tree_depth() {
-        let catalog = fixtures::foundry_catalog();
-        let inventory = fixtures::inventory_stocked(&[], &[]);
-        let tree = tree_of(&inventory, &catalog, recipe(&catalog, LUA_LENS));
+        let fixture = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[], &[]),
+        );
+        let tree = tree_of(&fixture, LUA_LENS);
 
         let eidolon = child(&tree, EIDOLON_LENS);
         let greater = child(&eidolon.children, GREATER_LENS);
@@ -436,21 +419,26 @@ mod tests {
 
     #[test]
     fn researched_control_module_expands() {
-        let catalog = fixtures::foundry_catalog();
-        let bare = fixtures::inventory_stocked(&[], &[]);
-        let bare_tree = tree_of(&bare, &catalog, recipe(&catalog, DETONITE_INJECTOR));
+        let bare = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[], &[]),
+        );
+        let bare_tree = tree_of(&bare, DETONITE_INJECTOR);
         let leaf = child(&bare_tree, CONTROL_MODULE);
         assert!(leaf.children.is_empty());
 
-        let researched = fixtures::inventory_stocked(
-            &[],
-            &[(
-                "Recipes",
-                "/Lotus/Types/Recipes/Components/ControlModuleResourceBlueprint",
-                1,
-            )],
+        let researched = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(
+                &[],
+                &[(
+                    "Recipes",
+                    "/Lotus/Types/Recipes/Components/ControlModuleResourceBlueprint",
+                    1,
+                )],
+            ),
         );
-        let researched_tree = tree_of(&researched, &catalog, recipe(&catalog, DETONITE_INJECTOR));
+        let researched_tree = tree_of(&researched, DETONITE_INJECTOR);
         let expanded = child(&researched_tree, CONTROL_MODULE);
         assert_eq!(expanded.children.len(), 5);
         assert_eq!(
@@ -470,9 +458,11 @@ mod tests {
 
     #[test]
     fn shared_neural_sensor_stock() {
-        let catalog = fixtures::foundry_catalog();
-        let inventory = fixtures::inventory_stocked(&[], &[("MiscItems", NEURAL_SENSOR, 5)]);
-        let tree = tree_of(&inventory, &catalog, recipe(&catalog, DUAL_KAMAS));
+        let fixture = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[], &[("MiscItems", NEURAL_SENSOR, 5)]),
+        );
+        let tree = tree_of(&fixture, DUAL_KAMAS);
 
         let kamas: Vec<&CraftNode> = tree
             .iter()
@@ -495,9 +485,11 @@ mod tests {
 
     #[test]
     fn stocked_forma_node() {
-        let catalog = fixtures::foundry_catalog();
-        let inventory = fixtures::inventory_stocked(&[], &[("MiscItems", FORMA_ITEM, 1)]);
-        let tree = tree_of(&inventory, &catalog, recipe(&catalog, LUA_LENS));
+        let fixture = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[], &[("MiscItems", FORMA_ITEM, 1)]),
+        );
+        let tree = tree_of(&fixture, LUA_LENS);
         let greater = child(&child(&tree, EIDOLON_LENS).children, GREATER_LENS);
         let forma = child(&greater.children, FORMA_ITEM);
         assert_eq!(forma.owned, 1);
@@ -511,16 +503,20 @@ mod tests {
 
     #[test]
     fn summary_credits_and_time() {
-        let catalog = fixtures::foundry_catalog();
-        let empty = fixtures::inventory_stocked(&[], &[]);
-        let bare = details(&empty, &catalog, &FixedPrices::default(), DUAL_KAMAS).unwrap();
+        let empty = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[], &[]),
+        );
+        let bare = details(&empty.view(), DUAL_KAMAS).unwrap();
         assert_eq!(bare.summary.credits, 60_000);
         assert_eq!(bare.summary.build_secs, 129_600);
         assert_eq!(bare.summary.shortest_secs, 86_400);
 
-        let both_kamas =
-            fixtures::inventory_stocked(&[("Melee", SINGLE_KAMA), ("Melee", SINGLE_KAMA)], &[]);
-        let stocked = details(&both_kamas, &catalog, &FixedPrices::default(), DUAL_KAMAS).unwrap();
+        let both_kamas = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[("Melee", SINGLE_KAMA), ("Melee", SINGLE_KAMA)], &[]),
+        );
+        let stocked = details(&both_kamas.view(), DUAL_KAMAS).unwrap();
         assert_eq!(stocked.summary.credits, 20_000);
         assert_eq!(stocked.summary.build_secs, 43_200);
         assert_eq!(stocked.summary.shortest_secs, 43_200);
@@ -528,9 +524,11 @@ mod tests {
 
     #[test]
     fn summary_shopping_list() {
-        let catalog = fixtures::foundry_catalog();
-        let empty = fixtures::inventory_stocked(&[], &[]);
-        let bare = details(&empty, &catalog, &FixedPrices::default(), DUAL_KAMAS).unwrap();
+        let empty = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[], &[]),
+        );
+        let bare = details(&empty.view(), DUAL_KAMAS).unwrap();
         let named = |list: &[NeededItem]| -> Vec<(String, i64)> {
             list.iter()
                 .map(|needed| (needed.name.clone(), needed.amount))
@@ -576,9 +574,11 @@ mod tests {
             ]
         );
 
-        let both_kamas =
-            fixtures::inventory_stocked(&[("Melee", SINGLE_KAMA), ("Melee", SINGLE_KAMA)], &[]);
-        let stocked = details(&both_kamas, &catalog, &FixedPrices::default(), DUAL_KAMAS).unwrap();
+        let both_kamas = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[("Melee", SINGLE_KAMA), ("Melee", SINGLE_KAMA)], &[]),
+        );
+        let stocked = details(&both_kamas.view(), DUAL_KAMAS).unwrap();
         assert!(
             !named(&stocked.summary.blueprints_needed)
                 .iter()
@@ -593,9 +593,8 @@ mod tests {
 
     #[test]
     fn nodes_carry_a_wiki_link_and_their_drops() {
-        let catalog = fixtures::catalog();
-        let inventory = fixtures::inventory();
-        let tree = tree_of(&inventory, &catalog, recipe(&catalog, BRATON_PRIME));
+        let fixture = Fixture::new(fixtures::catalog(), fixtures::inventory());
+        let tree = tree_of(&fixture, BRATON_PRIME);
 
         let stock = child(&tree, BRATON_PRIME_STOCK);
         assert_eq!(stock.wiki_url.as_deref(), Some(BRATON_PRIME_WIKI));
@@ -621,9 +620,11 @@ mod tests {
 
     #[test]
     fn lua_lens_summary() {
-        let catalog = fixtures::foundry_catalog();
-        let inventory = fixtures::inventory_stocked(&[], &[]);
-        let lens = details(&inventory, &catalog, &FixedPrices::default(), LUA_LENS).unwrap();
+        let fixture = Fixture::new(
+            fixtures::foundry_catalog(),
+            fixtures::inventory_stocked(&[], &[]),
+        );
+        let lens = details(&fixture.view(), LUA_LENS).unwrap();
         let morphics = child(
             &child(
                 &child(&child(&lens.tree, EIDOLON_LENS).children, GREATER_LENS).children,

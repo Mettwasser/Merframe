@@ -158,13 +158,14 @@ fn count_by_rank(
 
 fn upgrade_rows(view: &View, wanted: UpgradeKind) -> Vec<ModRow> {
     let View {
-        inventory,
+        account,
         catalog,
         items,
         prices,
         favourites,
         listings,
     } = *view;
+    let inventory = &account.inventory;
     let slots = inventory.upgrade_slots();
     let mut rows: Vec<ModRow> = count_by_rank(inventory, wanted)
         .into_iter()
@@ -210,41 +211,22 @@ fn upgrade_rows(view: &View, wanted: UpgradeKind) -> Vec<ModRow> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::tests::{no_listings, prices};
+    use super::super::tests::prices;
     use super::*;
     use crate::catalog::fixtures;
-    use crate::favourites::Favourites;
-    use crate::identity::ItemTable;
     use crate::prices::FixedPrices;
+    use crate::view::Fixture;
     use wf_data::Rarity;
 
     #[test]
     fn every_upgrade_resolves() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let items = ItemTable::build(&catalog);
-        let rows = [
-            mods(&View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &no_listings(),
-            }),
-            arcanes(&View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &no_listings(),
-            }),
-        ]
-        .concat();
+        let fixture =
+            Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory()).with_prices(prices());
+        let view = fixture.view();
+        let rows = [mods(&view), arcanes(&view)].concat();
         let unresolved: Vec<&str> = rows
             .iter()
-            .filter(|row| items.get(&row.unique_name).is_none())
+            .filter(|row| fixture.items.get(&row.unique_name).is_none())
             .map(|row| row.unique_name.as_str())
             .collect();
         assert!(unresolved.is_empty(), "{unresolved:?}");
@@ -253,16 +235,9 @@ mod tests {
 
     #[test]
     fn stances_and_precepts_are_mods() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let rows = mods(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = mods(&fixture.view());
         let stance = rows
             .iter()
             .find(|row| row.name == "Gaia's Tragedy")
@@ -273,16 +248,9 @@ mod tests {
 
     #[test]
     fn starter_only_mods() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let rows = mods(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = mods(&fixture.view());
         let maglev = rows
             .iter()
             .find(|row| row.unique_name == "/Lotus/Upgrades/Mods/Warframe/AvatarSlideBoostMod")
@@ -306,17 +274,9 @@ mod tests {
 
     #[test]
     fn unlisted_upgrades() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let view = View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        };
-        let arcane = arcanes(&view)
+        let fixture =
+            Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory()).with_prices(prices());
+        let arcane = arcanes(&fixture.view())
             .into_iter()
             .find(|row| {
                 row.unique_name
@@ -329,7 +289,7 @@ mod tests {
         assert_eq!(arcane.count, 94);
         assert_eq!(arcane.market_slug, "zid-an-haras");
 
-        let core = mods(&view)
+        let core = mods(&fixture.view())
             .into_iter()
             .find(|row| row.unique_name == "/Lotus/Upgrades/Mods/Fusers/LegendaryModFuser")
             .expect("Legendary Core");
@@ -341,20 +301,13 @@ mod tests {
 
     #[test]
     fn arcane_prices() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let prices = FixedPrices::new([("arcane_energize", 12.0), ("virtuos_surge", 9.0)])
-            .with_max_rank([("arcane_energize", 240.0)])
-            .with_buy([("arcane_energize", 7.0)]);
-        let view = View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices,
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
+        let fixture = Fixture {
+            prices: FixedPrices::new([("arcane_energize", 12.0), ("virtuos_surge", 9.0)])
+                .with_max_rank([("arcane_energize", 240.0)])
+                .with_buy([("arcane_energize", 7.0)]),
+            ..Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory())
         };
-        let rows = arcanes(&view);
+        let rows = arcanes(&fixture.view());
 
         let energize: Vec<&ModRow> = rows
             .iter()
@@ -385,7 +338,7 @@ mod tests {
             "an arcane that tops out at rank 3 says so"
         );
 
-        let mod_rows = mods(&view);
+        let mod_rows = mods(&fixture.view());
         assert!(
             mod_rows
                 .iter()
@@ -395,25 +348,16 @@ mod tests {
 
     #[test]
     fn listed_slug_wins_over_the_derived_one() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let prices =
-            FixedPrices::new([("arcane_energize", 12.0), ("arcane\u{2019}energize", 30.0)]);
-        let mut items = ItemTable::build(&catalog);
+        let mut fixture = Fixture {
+            prices: FixedPrices::new([("arcane_energize", 12.0), ("arcane\u{2019}energize", 30.0)]),
+            ..Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory())
+        };
         let listed: Vec<wf_market::Item> = serde_json::from_str(
             r#"[{"id":"1","slug":"arcane\u2019energize","gameRef":"/Lotus/Upgrades/CosmeticEnhancers/Utility/GolemArcaneRadialEnergyOnEnergyPickup","tags":[],"i18n":{}}]"#,
         )
         .unwrap();
-        items.index_market(&listed);
-        let view = View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &items,
-            prices: &prices,
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        };
-        let energize = arcanes(&view)
+        fixture.items.index_market(&listed);
+        let energize = arcanes(&fixture.view())
             .into_iter()
             .find(|row| row.name == "Arcane Energize")
             .expect("Arcane Energize");
@@ -423,18 +367,10 @@ mod tests {
 
     #[test]
     fn rank_groups_sorted_by_name() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::catalog();
-        let view = View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        };
-        let mod_rows = mods(&view);
-        let arcane_rows = arcanes(&view);
+        let fixture =
+            Fixture::new(fixtures::catalog(), fixtures::inventory()).with_prices(prices());
+        let mod_rows = mods(&fixture.view());
+        let arcane_rows = arcanes(&fixture.view());
 
         assert!(
             mod_rows
@@ -502,16 +438,9 @@ mod tests {
 
     #[test]
     fn veiled_rivens_only() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::catalog();
-        let rows = mods(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(fixtures::catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = mods(&fixture.view());
         let riven_rows: Vec<&ModRow> = rows
             .iter()
             .filter(|row| is_riven(&row.unique_name))
@@ -531,16 +460,9 @@ mod tests {
 
     #[test]
     fn equipped_in() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let rows = mods(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = mods(&fixture.view());
         let equipped: Vec<&ModRow> = rows
             .iter()
             .filter(|row| !row.equipped_in.is_empty())
@@ -571,16 +493,9 @@ mod tests {
 
     #[test]
     fn equipped_holders() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
-        let rows = mods(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = mods(&fixture.view());
         let braton = rows
             .iter()
             .flat_map(|row| &row.equipped_in)
@@ -595,18 +510,11 @@ mod tests {
         assert!(!braton.orokin_upgrade);
         assert!(!braton.exilus_adapter);
         assert_eq!(braton.custom_name, None);
-        let equinox = arcanes(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        })
-        .into_iter()
-        .flat_map(|row| row.equipped_in)
-        .find(|holder| holder.name == "Equinox Prime")
-        .unwrap();
+        let equinox = arcanes(&fixture.view())
+            .into_iter()
+            .flat_map(|row| row.equipped_in)
+            .find(|holder| holder.name == "Equinox Prime")
+            .unwrap();
         assert_eq!(equinox.forma, 1);
         assert_eq!(equinox.archon_shards, 5);
         assert_eq!(equinox.rank, Some(30));
@@ -617,18 +525,12 @@ mod tests {
 
     #[test]
     fn floor_price_marker() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let priced = FixedPrices::new([("arcane_energize", 12.0), ("virtuos_surge", 9.0)])
-            .with_max_rank([("arcane_energize", 240.0)]);
-        let rows = arcanes(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &priced,
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture {
+            prices: FixedPrices::new([("arcane_energize", 12.0), ("virtuos_surge", 9.0)])
+                .with_max_rank([("arcane_energize", 240.0)]),
+            ..Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory())
+        };
+        let rows = arcanes(&fixture.view());
 
         let at_max = rows
             .iter()
@@ -656,17 +558,11 @@ mod tests {
 
     #[test]
     fn maxed_serration_price() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let priced = FixedPrices::new([("serration", 10.0)]).with_max_rank([("serration", 90.0)]);
-        let rows = mods(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &priced,
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture {
+            prices: FixedPrices::new([("serration", 10.0)]).with_max_rank([("serration", 90.0)]),
+            ..Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory())
+        };
+        let rows = mods(&fixture.view());
         let serration: Vec<&ModRow> = rows
             .iter()
             .filter(|row| row.market_slug == "serration")
@@ -696,17 +592,11 @@ mod tests {
 
     #[test]
     fn maxed_without_max_rank_price() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::upgrade_catalog();
-        let priced = FixedPrices::new([("serration", 10.0)]);
-        let rows = mods(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &priced,
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture {
+            prices: FixedPrices::new([("serration", 10.0)]),
+            ..Fixture::new(fixtures::upgrade_catalog(), fixtures::inventory())
+        };
+        let rows = mods(&fixture.view());
         let maxed = rows
             .iter()
             .find(|row| row.market_slug == "serration" && row.rank == Some(10))

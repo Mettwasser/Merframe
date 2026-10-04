@@ -172,8 +172,9 @@ fn unfinished_intrinsics(summary: &MasterySummary) -> Vec<MasteryItem> {
 
 pub(crate) fn tab(view: &View, options: MasteryOptions) -> MasteryTab {
     let View {
-        inventory, catalog, ..
+        account, catalog, ..
     } = *view;
+    let inventory = &account.inventory;
     let all = items(view, options);
     let summary = summary(inventory, &all);
     let extras = if options.ordering == MasteryOrdering::Closest {
@@ -182,7 +183,7 @@ pub(crate) fn tab(view: &View, options: MasteryOptions) -> MasteryTab {
         Vec::new()
     };
 
-    let routes = level_up_routes(inventory, catalog, &all);
+    let routes = level_up_routes(account, catalog, &all);
     let unmastered: Vec<MasteryItem> = all.into_iter().filter(|item| !item.mastered).collect();
     let recommended = order_items(unmastered, extras, options);
     let plat_total = recommended
@@ -190,7 +191,7 @@ pub(crate) fn tab(view: &View, options: MasteryOptions) -> MasteryTab {
         .map(|item| item.acquisition.plat_cost)
         .sum();
 
-    let total = mastery_xp(inventory, catalog).total();
+    let total = mastery_xp(account, catalog).total();
     let rank = inventory.player_level;
     let current = xp_for_rank(rank);
     let next = xp_for_rank(rank + 1);
@@ -223,28 +224,17 @@ pub(crate) fn tab(view: &View, options: MasteryOptions) -> MasteryTab {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::account::Account;
     use crate::catalog::fixtures;
-    use crate::favourites::Favourites;
-    use crate::identity::ItemTable;
-    use crate::listings::MarketListings;
     use crate::mastery::items::{FOUNDERS_ITEMS, unmastered_types};
     use crate::mastery::support::{excluding_founders, founder_inventory, prices};
+    use crate::view::Fixture;
 
     #[test]
     fn fixture_rank_progress() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
-        let tab = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).with_prices(prices());
+        let tab = tab(&fixture.view(), MasteryOptions::default());
 
         assert_eq!(tab.rank, 14);
         assert_eq!(tab.rank_xp_earned, 45_138);
@@ -260,38 +250,18 @@ mod tests {
         reason = "mastery XP stays far below 2^53"
     )]
     fn favourite_xp_band() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
+        let mut fixture =
+            Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).with_prices(prices());
         let options = MasteryOptions::default();
-        let plain = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            options,
-        );
+        let plain = tab(&fixture.view(), options);
         assert!(!plain.recommended.is_empty());
         assert!(plain.recommended.iter().all(|item| !item.favourite));
         assert_eq!(plain.favourite_xp, 0);
         assert!((plain.favourite_percent - 0.0).abs() < f64::EPSILON);
 
         let first = &plain.recommended[0];
-        let starred: Favourites = [first.unique_name.clone()].into_iter().collect();
-        let marked = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &starred,
-                listings: &MarketListings::default(),
-            },
-            options,
-        );
+        fixture.favourites = [first.unique_name.clone()].into_iter().collect();
+        let marked = tab(&fixture.view(), options);
         assert_eq!(
             marked
                 .recommended
@@ -316,72 +286,32 @@ mod tests {
 
     #[test]
     fn non_founder_account() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
-        assert!(!inventory.is_founder());
-        let shown = items(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).with_prices(prices());
+        assert!(!fixture.account.inventory.is_founder());
+        let shown = items(&fixture.view(), MasteryOptions::default());
         assert!(
             !shown
                 .iter()
                 .any(|item| FOUNDERS_ITEMS.contains(&item.unique_name.as_str()))
         );
-        let tab = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
+        let tab = tab(&fixture.view(), MasteryOptions::default());
         assert!(!tab.founder);
         assert!(!tab.include_founders);
     }
 
     #[test]
     fn founder_account() {
-        let inventory = founder_inventory();
-        let catalog = fixtures::mastery_catalog();
-        let shown = items(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), founder_inventory()).with_prices(prices());
+        let shown = items(&fixture.view(), MasteryOptions::default());
         assert!(
             shown
                 .iter()
                 .any(|item| item.unique_name == FOUNDERS_ITEMS[0])
         );
 
-        let hidden = items(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            excluding_founders(),
-        );
+        let hidden = items(&fixture.view(), excluding_founders());
         assert!(
             !hidden
                 .iter()
@@ -389,47 +319,17 @@ mod tests {
         );
         assert_eq!(shown.len() - hidden.len(), 3);
 
-        let tab = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
+        let tab = tab(&fixture.view(), MasteryOptions::default());
         assert!(tab.founder);
         assert!(tab.include_founders);
     }
 
     #[test]
     fn excluded_founders_items() {
-        let inventory = founder_inventory();
-        let catalog = fixtures::mastery_catalog();
-        let with = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
-        let without = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            excluding_founders(),
-        );
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), founder_inventory()).with_prices(prices());
+        let with = tab(&fixture.view(), MasteryOptions::default());
+        let without = tab(&fixture.view(), excluding_founders());
 
         assert!(!without.include_founders);
         assert!(without.founder);
@@ -455,61 +355,31 @@ mod tests {
         assert!(names(&with).iter().any(|name| name == "Excalibur Prime"));
         assert!(names(&without).iter().all(|name| name != "Excalibur Prime"));
 
-        let unmastered = unmastered_types(&inventory, &catalog);
+        let unmastered = unmastered_types(&fixture.account, &fixture.catalog);
         assert!(unmastered.contains(FOUNDERS_ITEMS[0]));
-        let no_founder = unmastered_types(&fixtures::inventory(), &catalog);
+        let no_founder = unmastered_types(&Account::new(fixtures::inventory()), &fixture.catalog);
         assert!(!no_founder.contains(FOUNDERS_ITEMS[0]));
     }
 
     #[test]
     fn founder_xp_unchanged() {
-        let inventory = founder_inventory();
-        let catalog = fixtures::mastery_catalog();
-        let breakdown = mastery_xp(&inventory, &catalog);
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), founder_inventory()).with_prices(prices());
+        let breakdown = mastery_xp(&fixture.account, &fixture.catalog);
         assert_eq!(
             breakdown.total(),
-            mastery_xp(&fixtures::inventory(), &catalog).total()
+            mastery_xp(&Account::new(fixtures::inventory()), &fixture.catalog).total()
         );
-        let with = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
-        let without = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            excluding_founders(),
-        );
+        let with = tab(&fixture.view(), MasteryOptions::default());
+        let without = tab(&fixture.view(), excluding_founders());
         assert_eq!(with.rank_xp_earned, without.rank_xp_earned);
     }
 
     #[test]
     fn default_ordering() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
-        let tab = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).with_prices(prices());
+        let tab = tab(&fixture.view(), MasteryOptions::default());
         assert!(tab.recommended.iter().all(|item| !item.mastered));
         let first_unowned = tab.recommended.iter().position(|item| !item.owned);
         let last_owned = tab.recommended.iter().rposition(|item| item.owned);
@@ -526,17 +396,10 @@ mod tests {
 
     #[test]
     fn forma_rank_filter() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).with_prices(prices());
         let without_forma = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
+            &fixture.view(),
             MasteryOptions {
                 include_forma_ranks: false,
                 ..MasteryOptions::default()
@@ -548,33 +411,16 @@ mod tests {
                 .iter()
                 .all(|item| item.level.current < 30)
         );
-        let with_forma = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
-            MasteryOptions::default(),
-        );
+        let with_forma = tab(&fixture.view(), MasteryOptions::default());
         assert!(with_forma.recommended.len() >= without_forma.recommended.len());
     }
 
     #[test]
     fn platinum_ordering() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).with_prices(prices());
         let tab = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
+            &fixture.view(),
             MasteryOptions {
                 ordering: MasteryOrdering::ByPlatinum,
                 ..MasteryOptions::default()
@@ -596,17 +442,10 @@ mod tests {
 
     #[test]
     fn relic_ordering() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
+        let fixture =
+            Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).with_prices(prices());
         let tab = tab(
-            &View {
-                inventory: &inventory,
-                catalog: &catalog,
-                items: &ItemTable::build(&catalog),
-                prices: &prices(),
-                favourites: &Favourites::default(),
-                listings: &MarketListings::default(),
-            },
+            &fixture.view(),
             MasteryOptions {
                 ordering: MasteryOrdering::FromRelics,
                 ..MasteryOptions::default()

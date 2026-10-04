@@ -8,6 +8,7 @@ mod stock;
 mod tab;
 mod tree;
 
+pub(crate) use stock::FoundryStock;
 pub(crate) use tab::{items, tab};
 pub(crate) use tree::{details, is_blueprint};
 

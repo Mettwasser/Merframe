@@ -5,14 +5,11 @@ use wf_data::{Component, Item, base_warframe_name, helminth_ability, store_item_
 use wf_inventory::Inventory;
 use wf_worldstate::WorldState;
 
-use crate::catalog::{
-    Catalog, Stock, VaultStatus, component_image, is_prime, item_name, part_name,
-};
-use crate::favourites::Favourites;
+use crate::catalog::{Catalog, VaultStatus, component_image, is_prime, item_name, part_name};
 use crate::mastery::{includes_founders, kind_of, masterable};
+use crate::view::View;
 
 use super::acquisition::{owned_relics, wiki_url};
-use super::stock::fill_slots;
 use super::{
     FoundryComponent, FoundryItem, FoundryTab, Helminth, MasteryGate, PendingBuild, Prime,
     Progress, WorldTimer,
@@ -21,16 +18,14 @@ use super::{
 const CRAFTABLE_INTO_KINDS: [&str; 4] = ["primary", "secondary", "melee", "arch"];
 
 pub(crate) fn tab(
-    inventory: &Inventory,
-    catalog: &Catalog,
+    view: &View,
     world: Option<&WorldState>,
     include_founders: Option<bool>,
     now: DateTime<Utc>,
-    favourites: &Favourites,
 ) -> FoundryTab {
     FoundryTab {
-        pending: pending(inventory, catalog, now),
-        items: items(inventory, catalog, world, include_founders, now, favourites),
+        pending: pending(&view.account.inventory, view.catalog, now),
+        items: items(view, world, include_founders, now),
         timers: world.map(|state| timers(state, now)).unwrap_or_default(),
     }
 }
@@ -61,21 +56,23 @@ pub(crate) fn pending(
 }
 
 pub(crate) fn items(
-    inventory: &Inventory,
-    catalog: &Catalog,
+    view: &View,
     world: Option<&WorldState>,
     include_founders: Option<bool>,
     now: DateTime<Utc>,
-    favourites: &Favourites,
 ) -> Vec<FoundryItem> {
+    let View {
+        account,
+        catalog,
+        favourites,
+        ..
+    } = *view;
+    let inventory = &account.inventory;
     let resurgence = prime_resurgence(world, now);
     let adapted = inventory.adapted_incarnons();
     let crafts_into = crafting_parents(catalog);
     let subsumed = subsumed_warframes(inventory, catalog);
     let shards = inventory.archon_shard_index();
-    let owned_types = inventory.owned_item_types();
-    let affinity = inventory.affinity_index();
-    let stock = Stock::new(inventory);
     let pending: HashSet<&str> = inventory
         .pending_recipes
         .iter()
@@ -91,7 +88,9 @@ pub(crate) fn items(
         masterable(catalog, includes_founders(inventory, include_founders))
             .map(|item| {
                 let recipe = item.components.as_deref().unwrap_or_default();
-                let components: Vec<FoundryComponent> = fill_slots(inventory, recipe)
+                let components: Vec<FoundryComponent> = account
+                    .foundry
+                    .fill_slots(recipe)
                     .into_iter()
                     .zip(recipe)
                     .map(|(slot, component)| FoundryComponent {
@@ -104,7 +103,7 @@ pub(crate) fn items(
                         enough: slot.satisfied,
                         owned_relics: owned_relics(
                             catalog,
-                            &stock,
+                            &account.stock,
                             component.drops.as_deref().unwrap_or_default(),
                         ),
                     })
@@ -112,11 +111,7 @@ pub(crate) fn items(
                 let pending_here = components
                     .iter()
                     .any(|component| pending.contains(component.unique_name.as_str()));
-                let owned = owned_types.contains(item.unique_name.as_str()) || pending_here;
-                let xp = affinity
-                    .get(item.unique_name.as_str())
-                    .copied()
-                    .unwrap_or_default();
+                let owned = account.built(&item.unique_name) || pending_here;
                 let kind = kind_of(item);
                 FoundryItem {
                     unique_name: item.unique_name.clone(),
@@ -129,7 +124,7 @@ pub(crate) fn items(
                         vault: vault_status(item),
                         resurgence: resurgence.contains(item.unique_name.as_str()),
                     }),
-                    mastered: xp >= item.affinity_cap(),
+                    mastered: account.mastered(item),
                     progress: Progress {
                         owned,
                         pending: pending_here,
@@ -267,7 +262,7 @@ mod tests {
     use super::*;
     use crate::catalog::fixtures;
     use crate::foundry::details;
-    use crate::prices::FixedPrices;
+    use crate::view::Fixture;
 
     const DUAL_KAMAS: &str = "/Lotus/Weapons/Tenno/Melee/DualKamas/DualKamas";
     const SINGLE_KAMA: &str = "/Lotus/Weapons/Tenno/Melee/DualKamas/SingleKama";
@@ -329,14 +324,7 @@ mod tests {
             Some("GenericWarframeHelmet.png")
         );
 
-        let rows = items(
-            &inventory,
-            &catalog,
-            None,
-            None,
-            now,
-            &Favourites::default(),
-        );
+        let rows = items(&Fixture::new(catalog, inventory).view(), None, None, now);
         let excalibur = row(&rows, "/Lotus/Powersuits/Excalibur/Excalibur");
         assert!(excalibur.progress.pending);
         assert!(excalibur.progress.owned);
@@ -344,17 +332,9 @@ mod tests {
 
     #[test]
     fn favourite_flags() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::catalog();
+        let mut fixture = Fixture::new(fixtures::catalog(), fixtures::inventory());
         let now = at(1_788_807_069_000);
-        let plain = items(
-            &inventory,
-            &catalog,
-            None,
-            None,
-            now,
-            &Favourites::default(),
-        );
+        let plain = items(&fixture.view(), None, None, now);
         let braton = plain
             .iter()
             .find(|row| row.name == "Braton Prime")
@@ -368,10 +348,10 @@ mod tests {
         );
 
         let barrel = braton.components[0].unique_name.clone();
-        let starred: Favourites = [braton.unique_name.clone(), barrel.clone()]
+        fixture.favourites = [braton.unique_name.clone(), barrel.clone()]
             .into_iter()
             .collect();
-        let rows = items(&inventory, &catalog, None, None, now, &starred);
+        let rows = items(&fixture.view(), None, None, now);
         let braton = rows
             .iter()
             .find(|row| row.name == "Braton Prime")
@@ -395,17 +375,11 @@ mod tests {
 
     #[test]
     fn whole_catalog_listed() {
-        let inventory =
-            fixtures::inventory_without_equipment("/Lotus/Powersuits/Excalibur/Excalibur");
-        let catalog = fixtures::catalog();
-        let rows = items(
-            &inventory,
-            &catalog,
-            None,
-            None,
-            at(1_788_807_069_000),
-            &Favourites::default(),
+        let fixture = Fixture::new(
+            fixtures::catalog(),
+            fixtures::inventory_without_equipment("/Lotus/Powersuits/Excalibur/Excalibur"),
         );
+        let rows = items(&fixture.view(), None, None, at(1_788_807_069_000));
         let names: Vec<&str> = rows.iter().map(|row| row.name.as_str()).collect();
         assert_eq!(names, vec!["Braton Prime", "Excalibur", "Trinity Prime"]);
 
@@ -434,47 +408,34 @@ mod tests {
         assert!(trinity.mastered);
         assert!(trinity.prime.is_some());
 
-        let tree = details(
-            &inventory,
-            &catalog,
-            &FixedPrices::default(),
-            &excalibur.unique_name,
-        )
-        .unwrap()
-        .tree;
+        let tree = details(&fixture.view(), &excalibur.unique_name)
+            .unwrap()
+            .tree;
         let cell = tree
             .iter()
             .find(|node| node.name == "Orokin Cell")
             .expect("Orokin Cell");
         assert_eq!(cell.owned, 3319);
         assert!(cell.children.is_empty());
-        assert!(details(&inventory, &catalog, &FixedPrices::default(), "/Lotus/Nope").is_none());
+        assert!(details(&fixture.view(), "/Lotus/Nope").is_none());
 
-        let with_skins = fixtures::with_skins(fixtures::ITEMS);
+        let with_skins = Fixture::new(
+            fixtures::with_skins(fixtures::ITEMS),
+            fixture.account.inventory.clone(),
+        );
         assert_eq!(
-            items(
-                &inventory,
-                &with_skins,
-                None,
-                None,
-                at(1_788_807_069_000),
-                &Favourites::default()
-            ),
+            items(&with_skins.view(), None, None, at(1_788_807_069_000)),
             rows
         );
     }
 
     #[test]
     fn helminth_and_archon_shards() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
         let rows = items(
-            &inventory,
-            &catalog,
+            &Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).view(),
             None,
             None,
             at(1_788_807_069_000),
-            &Favourites::default(),
         );
         let row = |name: &str| rows.iter().find(|row| row.name == name).unwrap();
 
@@ -515,15 +476,11 @@ mod tests {
 
     #[test]
     fn necramech_rows() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::mastery_catalog();
         let rows = items(
-            &inventory,
-            &catalog,
+            &Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()).view(),
             None,
             None,
             at(1_788_807_069_000),
-            &Favourites::default(),
         );
         let row = |name: &str| rows.iter().find(|row| row.name == name).unwrap();
 
@@ -551,29 +508,19 @@ mod tests {
             r#""Recipes":[{"ItemType":"/Lotus/Types/Recipes/WarframeRecipes/ExcaliburBlueprint","ItemCount":1},{"ItemType":"/Lotus/Types/Recipes/WarframeRecipes/ExcaliburChassisComponent","ItemCount":1},{"ItemType":"/Lotus/Types/Recipes/WarframeRecipes/ExcaliburHelmetComponent","ItemCount":1},{"ItemType":"/Lotus/Types/Recipes/WarframeRecipes/ExcaliburSystemsComponent","ItemCount":1},{"#,
             1,
         );
-        let inventory = wf_inventory::Inventory::parse(&inventory_json).unwrap();
-        let catalog = fixtures::catalog();
-        let rows = items(
-            &inventory,
-            &catalog,
-            None,
-            None,
-            at(1_788_807_069_000),
-            &Favourites::default(),
+        let fixture = Fixture::new(
+            fixtures::catalog(),
+            wf_inventory::Inventory::parse(&inventory_json).unwrap(),
         );
+        let rows = items(&fixture.view(), None, None, at(1_788_807_069_000));
         let excalibur = rows.iter().find(|row| row.name == "Excalibur").unwrap();
         assert!(excalibur.progress.ready_to_build);
         assert!(
-            details(
-                &inventory,
-                &catalog,
-                &FixedPrices::default(),
-                &excalibur.unique_name
-            )
-            .unwrap()
-            .tree
-            .iter()
-            .all(|node| node.stocked)
+            details(&fixture.view(), &excalibur.unique_name)
+                .unwrap()
+                .tree
+                .iter()
+                .all(|node| node.stocked)
         );
     }
 
@@ -615,25 +562,20 @@ mod tests {
 
     #[test]
     fn mastery_requirement() {
-        let catalog = fixtures::foundry_catalog();
         let veteran = items(
-            &inventory_at_rank(36),
-            &catalog,
+            &Fixture::new(fixtures::foundry_catalog(), inventory_at_rank(36)).view(),
             None,
             None,
             at(VARZIA_TRADING_MS),
-            &Favourites::default(),
         );
         assert!(veteran.iter().all(|row| row.mastery.met));
         assert_eq!(row(&veteran, BOAR).mastery.required, Some(2));
 
         let fresh = items(
-            &inventory_at_rank(1),
-            &catalog,
+            &Fixture::new(fixtures::foundry_catalog(), inventory_at_rank(1)).view(),
             None,
             None,
             at(VARZIA_TRADING_MS),
-            &Favourites::default(),
         );
         assert!(row(&fresh, SKANA).mastery.met);
         assert!(row(&fresh, DUAL_KAMAS).mastery.met);
@@ -642,18 +584,10 @@ mod tests {
 
     #[test]
     fn varzia_resurgence() {
-        let catalog = fixtures::foundry_catalog();
-        let inventory = fixtures::inventory();
+        let fixture = Fixture::new(fixtures::foundry_catalog(), fixtures::inventory());
         let world = world_state();
 
-        let trading = items(
-            &inventory,
-            &catalog,
-            Some(&world),
-            None,
-            at(VARZIA_TRADING_MS),
-            &Favourites::default(),
-        );
+        let trading = items(&fixture.view(), Some(&world), None, at(VARZIA_TRADING_MS));
         assert!(
             row(&trading, BANSHEE_PRIME)
                 .prime
@@ -665,28 +599,14 @@ mod tests {
                 .is_some_and(|prime| prime.resurgence)
         );
 
-        let gone = items(
-            &inventory,
-            &catalog,
-            Some(&world),
-            None,
-            at(1_790_877_600_000),
-            &Favourites::default(),
-        );
+        let gone = items(&fixture.view(), Some(&world), None, at(1_790_877_600_000));
         assert!(
             !row(&gone, BANSHEE_PRIME)
                 .prime
                 .is_some_and(|prime| prime.resurgence)
         );
 
-        let offline = items(
-            &inventory,
-            &catalog,
-            None,
-            None,
-            at(VARZIA_TRADING_MS),
-            &Favourites::default(),
-        );
+        let offline = items(&fixture.view(), None, None, at(VARZIA_TRADING_MS));
         assert!(
             !row(&offline, BANSHEE_PRIME)
                 .prime
@@ -696,14 +616,11 @@ mod tests {
 
     #[test]
     fn incarnon_adapted_copy() {
-        let catalog = fixtures::foundry_catalog();
         let untouched = items(
-            &fixtures::inventory(),
-            &catalog,
+            &Fixture::new(fixtures::foundry_catalog(), fixtures::inventory()).view(),
             None,
             None,
             at(VARZIA_TRADING_MS),
-            &Favourites::default(),
         );
         assert!(
             !row(&untouched, SKANA).incarnon,
@@ -724,12 +641,10 @@ mod tests {
             }));
         let adapted = wf_inventory::Inventory::parse(&value.to_string()).unwrap();
         let rows = items(
-            &adapted,
-            &catalog,
+            &Fixture::new(fixtures::foundry_catalog(), adapted).view(),
             None,
             None,
             at(VARZIA_TRADING_MS),
-            &Favourites::default(),
         );
         assert!(row(&rows, SKANA).incarnon);
         assert!(!row(&rows, BOAR).incarnon);
@@ -739,7 +654,6 @@ mod tests {
 
     #[test]
     fn founders_items() {
-        let catalog = fixtures::mastery_catalog();
         let founders = [
             "/Lotus/Powersuits/Excalibur/ExcaliburPrime",
             "/Lotus/Weapons/Tenno/Pistol/LatoPrime",
@@ -747,12 +661,10 @@ mod tests {
         ];
         let listed = |inventory: &Inventory, chosen: Option<bool>| -> usize {
             let rows = items(
-                inventory,
-                &catalog,
+                &Fixture::new(fixtures::mastery_catalog(), inventory.clone()).view(),
                 None,
                 chosen,
                 at(VARZIA_TRADING_MS),
-                &Favourites::default(),
             );
             rows.iter()
                 .filter(|row| founders.contains(&row.unique_name.as_str()))
@@ -777,14 +689,11 @@ mod tests {
 
     #[test]
     fn single_kama_crafts_into_dual() {
-        let catalog = fixtures::foundry_catalog();
         let rows = items(
-            &fixtures::inventory(),
-            &catalog,
+            &Fixture::new(fixtures::foundry_catalog(), fixtures::inventory()).view(),
             None,
             None,
             at(VARZIA_TRADING_MS),
-            &Favourites::default(),
         );
         let kama = row(&rows, SINGLE_KAMA);
         assert_eq!(kama.crafts_into, ["Dual Kamas"]);
@@ -794,7 +703,6 @@ mod tests {
 
     #[test]
     fn cards_carry_a_wiki_link_and_the_owned_relics() {
-        let catalog = fixtures::catalog();
         let inventory = fixtures::inventory_stocked(
             &[],
             &[(
@@ -804,12 +712,10 @@ mod tests {
             )],
         );
         let rows = items(
-            &inventory,
-            &catalog,
+            &Fixture::new(fixtures::catalog(), inventory).view(),
             None,
             None,
             at(VARZIA_TRADING_MS),
-            &Favourites::default(),
         );
         let braton = rows.iter().find(|row| row.name == "Braton Prime").unwrap();
         assert_eq!(
@@ -842,14 +748,11 @@ mod tests {
 
     #[test]
     fn prime_vault_status() {
-        let catalog = fixtures::foundry_catalog();
         let rows = items(
-            &fixtures::inventory(),
-            &catalog,
+            &Fixture::new(fixtures::foundry_catalog(), fixtures::inventory()).view(),
             None,
             None,
             at(VARZIA_TRADING_MS),
-            &Favourites::default(),
         );
         assert!(row(&rows, BANSHEE_PRIME).prime.is_some());
         assert_eq!(row(&rows, SKANA).prime, None);

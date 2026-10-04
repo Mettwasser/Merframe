@@ -2,6 +2,7 @@ use serde::Serialize;
 use wf_data::Relic;
 use wf_inventory::Inventory;
 
+use crate::account::Account;
 use crate::catalog::{Catalog, REFINEMENTS, Stock, refinement_name};
 use crate::mastery;
 
@@ -34,13 +35,12 @@ pub struct MissingPart {
     pub mastery: bool,
 }
 
-pub(crate) fn missing_parts(inventory: &Inventory, catalog: &Catalog) -> Vec<MissingPart> {
-    let unmastered = mastery::unmastered_types(inventory, catalog);
-    let stock = Stock::new(inventory);
+pub(crate) fn missing_parts(account: &Account, catalog: &Catalog) -> Vec<MissingPart> {
+    let unmastered = mastery::unmastered_types(account, catalog);
     catalog
         .prime_parts()
         .filter(|(_, component)| {
-            stock.count(&component.unique_name) < i64::from(component.item_count)
+            account.stock.count(&component.unique_name) < i64::from(component.item_count)
         })
         .map(|(item, component)| MissingPart {
             unique_name: component.unique_name.clone(),
@@ -80,6 +80,7 @@ pub(crate) fn void_traces(inventory: &Inventory) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::account::Account;
     use crate::catalog::fixtures;
     use crate::prices::FixedPrices;
 
@@ -110,12 +111,12 @@ mod tests {
 
     #[test]
     fn fixture_missing_parts() {
-        let inventory = fixtures::inventory();
+        let account = Account::new(fixtures::inventory());
         let catalog = fixtures::catalog();
-        let missing = missing_parts(&inventory, &catalog);
+        let missing = missing_parts(&account, &catalog);
         assert_eq!(missing.len(), 8);
         assert_eq!(
-            missing_parts(&inventory, &fixtures::with_skins(fixtures::ITEMS)),
+            missing_parts(&account, &fixtures::with_skins(fixtures::ITEMS)),
             missing
         );
         assert!(
@@ -128,11 +129,11 @@ mod tests {
     #[test]
     fn mastery_flag() {
         let catalog = fixtures::catalog();
-        let mastered = missing_parts(&fixtures::inventory(), &catalog);
+        let mastered = missing_parts(&Account::new(fixtures::inventory()), &catalog);
         assert!(mastered.iter().all(|part| !part.mastery));
 
         let unranked = inventory_without_affinity("/Lotus/Weapons/Tenno/Rifle/BratonPrime");
-        let missing = missing_parts(&unranked, &catalog);
+        let missing = missing_parts(&Account::new(unranked), &catalog);
         let braton: Vec<&MissingPart> = missing
             .iter()
             .filter(|part| part.unique_name.contains("BratonPrime"))

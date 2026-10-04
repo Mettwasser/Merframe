@@ -3,8 +3,8 @@ use std::collections::HashSet;
 
 use serde::Serialize;
 use wf_data::{Component, Item, store_item_to_type};
-use wf_inventory::Inventory;
 
+use crate::account::Account;
 use crate::catalog::{
     Catalog, DUCATS_ITEM, Stock, display_name_from_path, names_a_prime, part_identity,
 };
@@ -13,7 +13,7 @@ use crate::identity::{ItemRecord, ItemTable, Variant};
 use crate::prices::PriceSource;
 
 use super::missing_parts;
-use super::rewards::{MasteredItems, RewardOwnership, favourite_reward};
+use super::rewards::{RewardOwnership, favourite_reward};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Ranked {
@@ -70,22 +70,21 @@ pub struct AccountBalance {
 }
 
 struct Holdings<'a> {
+    account: &'a Account,
     missing: HashSet<String>,
-    stock: Stock<'a>,
-    mastered: MasteredItems<'a>,
     building: HashSet<&'a str>,
 }
 
 impl<'a> Holdings<'a> {
-    fn new(inventory: &'a Inventory, catalog: &'a Catalog) -> Self {
+    fn new(account: &'a Account, catalog: &Catalog) -> Self {
         Self {
-            missing: missing_parts(inventory, catalog)
+            account,
+            missing: missing_parts(account, catalog)
                 .iter()
                 .map(|part| part_identity(&part.unique_name).to_owned())
                 .collect(),
-            stock: Stock::new(inventory),
-            mastered: MasteredItems::new(inventory, catalog),
-            building: inventory
+            building: account
+                .inventory
                 .pending_recipes
                 .iter()
                 .map(|recipe| recipe.item_type.as_str())
@@ -95,7 +94,7 @@ impl<'a> Holdings<'a> {
 
     fn ownership(&self, unique_name: &str, parent: Option<(&Item, &Component)>) -> RewardOwnership {
         RewardOwnership {
-            owned: self.stock.count(unique_name),
+            owned: self.account.stock.count(unique_name),
             needed: parent.map_or(1, |(_, component)| component.item_count),
             needed_for_set: self.missing.contains(part_identity(unique_name)),
             parent_owned: parent.is_some_and(|(item, _)| self.built_or_building(item)),
@@ -103,7 +102,7 @@ impl<'a> Holdings<'a> {
     }
 
     fn built_or_building(&self, item: &Item) -> bool {
-        self.mastered.holds(&item.unique_name)
+        self.account.holds(item)
             || item
                 .components
                 .as_deref()
@@ -139,14 +138,14 @@ fn mark_best(ranked: &mut [Ranked]) {
 }
 
 pub(crate) fn recommend(
-    inventory: Option<&Inventory>,
+    account: Option<&Account>,
     catalog: &Catalog,
     items: &ItemTable,
     prices: &dyn PriceSource,
     favourites: &Favourites,
     rewards: &[String],
 ) -> RewardScreen {
-    let holdings = inventory.map(|inventory| Holdings::new(inventory, catalog));
+    let holdings = account.map(|account| Holdings::new(account, catalog));
     let mut ranked: Vec<Ranked> = rewards
         .iter()
         .map(|store_item| {
@@ -179,7 +178,7 @@ pub(crate) fn recommend(
                         item,
                         &component.unique_name,
                         &name,
-                        holdings.as_ref().map(|holdings| &holdings.stock),
+                        account.map(|account| &account.stock),
                         favourites,
                     ),
                     None => Vec::new(),
@@ -192,9 +191,9 @@ pub(crate) fn recommend(
     mark_best(&mut ranked);
     RewardScreen {
         ranked,
-        account: inventory.map(|inventory| AccountBalance {
-            plat: inventory.premium_credits,
-            ducats: inventory.counted(DUCATS_ITEM),
+        account: account.map(|account| AccountBalance {
+            plat: account.inventory.premium_credits,
+            ducats: account.inventory.counted(DUCATS_ITEM),
         }),
     }
 }
@@ -241,6 +240,7 @@ fn set_components(
 mod tests {
     use super::super::tests::prices;
     use super::*;
+    use crate::account::Account;
     use crate::catalog::fixtures;
     use crate::prices::FixedPrices;
     use wf_inventory::Inventory;
@@ -254,7 +254,7 @@ mod tests {
                 .to_owned(),
         ];
         let screen = recommend(
-            Some(&inventory),
+            Some(&Account::new(inventory)),
             &catalog,
             &ItemTable::build(&catalog),
             &prices(),
@@ -281,7 +281,7 @@ mod tests {
                 .to_owned(),
         ];
         let screen = recommend(
-            Some(&inventory),
+            Some(&Account::new(inventory)),
             &catalog,
             &ItemTable::build(&catalog),
             &prices(),
@@ -306,7 +306,7 @@ mod tests {
                 .to_owned(),
         ];
         let ranked = recommend(
-            Some(&inventory),
+            Some(&Account::new(inventory)),
             &catalog,
             &ItemTable::build(&catalog),
             &prices(),
@@ -352,7 +352,7 @@ mod tests {
         .into_iter()
         .collect();
         let ranked = recommend(
-            Some(&inventory),
+            Some(&Account::new(inventory)),
             &catalog,
             &ItemTable::build(&catalog),
             &prices(),
@@ -373,10 +373,10 @@ mod tests {
         "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeSystemsComponent";
     const FORMA_REWARD: &str = "/Lotus/StoreItems/Types/Recipes/Components/FormaBlueprint";
 
-    fn screen(inventory: &Inventory, rewards: &[&str]) -> RewardScreen {
+    fn screen(inventory: Inventory, rewards: &[&str]) -> RewardScreen {
         let rewards: Vec<String> = rewards.iter().map(|reward| (*reward).to_owned()).collect();
         recommend(
-            Some(inventory),
+            Some(&Account::new(inventory)),
             &fixtures::catalog(),
             &ItemTable::build(&fixtures::catalog()),
             &prices(),
@@ -413,12 +413,12 @@ mod tests {
 
     #[test]
     fn parent_owned() {
-        let owned = screen(&fixtures::inventory(), &[TRINITY_SYSTEMS_REWARD]);
+        let owned = screen(fixtures::inventory(), &[TRINITY_SYSTEMS_REWARD]);
         assert!(owned.ranked[0].ownership.unwrap().parent_owned);
 
         let missing = inventory_without_trinity_prime(None);
         assert!(
-            !screen(&missing, &[TRINITY_SYSTEMS_REWARD]).ranked[0]
+            !screen(missing, &[TRINITY_SYSTEMS_REWARD]).ranked[0]
                 .ownership
                 .unwrap()
                 .parent_owned
@@ -428,7 +428,7 @@ mod tests {
             "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeChassisComponent",
         ));
         assert!(
-            screen(&building, &[TRINITY_SYSTEMS_REWARD]).ranked[0]
+            screen(building, &[TRINITY_SYSTEMS_REWARD]).ranked[0]
                 .ownership
                 .unwrap()
                 .parent_owned,
@@ -439,7 +439,7 @@ mod tests {
     #[test]
     fn owned_against_needed() {
         let held = fixtures::inventory_owning(&[(TRINITY_SYSTEMS, 2)]);
-        let ranked = screen(&held, &[TRINITY_SYSTEMS_REWARD, FORMA_REWARD]).ranked;
+        let ranked = screen(held, &[TRINITY_SYSTEMS_REWARD, FORMA_REWARD]).ranked;
         assert_eq!(ranked[0].ownership.unwrap().owned, 2);
         assert_eq!(ranked[0].ownership.unwrap().needed, 1);
         assert!(ranked[0].ownership.unwrap().owned > 0);
@@ -454,7 +454,7 @@ mod tests {
     #[test]
     fn vaulted_flag() {
         let ranked = screen(
-            &fixtures::inventory(),
+            fixtures::inventory(),
             &[
                 TRINITY_SYSTEMS_REWARD,
                 "/Lotus/StoreItems/Types/Recipes/Weapons/WeaponParts/BratonPrimeStock",
@@ -471,7 +471,7 @@ mod tests {
     fn prime_set_components() {
         let held = fixtures::inventory_owning(&[(TRINITY_SYSTEMS, 1)]);
         let ranked = screen(
-            &held,
+            held,
             &[
                 TRINITY_SYSTEMS_REWARD,
                 "/Lotus/StoreItems/Types/Recipes/WarframeRecipes/ExcaliburChassisComponent",
@@ -514,7 +514,7 @@ mod tests {
     fn starred_component() {
         let starred: Favourites = [TRINITY_SYSTEMS].into_iter().collect();
         let ranked = recommend(
-            Some(&fixtures::inventory()),
+            Some(&Account::new(fixtures::inventory())),
             &fixtures::catalog(),
             &ItemTable::build(&fixtures::catalog()),
             &prices(),
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn set_price() {
         let ranked = screen(
-            &fixtures::inventory(),
+            fixtures::inventory(),
             &[TRINITY_SYSTEMS_REWARD, FORMA_REWARD],
         )
         .ranked;
@@ -544,7 +544,7 @@ mod tests {
 
     #[test]
     fn account_plat_and_ducats() {
-        let screen = screen(&fixtures::inventory(), &[FORMA_REWARD]);
+        let screen = screen(fixtures::inventory(), &[FORMA_REWARD]);
         assert_eq!(
             screen.account,
             Some(AccountBalance {
@@ -588,7 +588,7 @@ mod tests {
             "/Lotus/StoreItems/Types/Recipes/WarframeRecipes/StyanaxPrimeBlueprint".to_owned(),
         ];
         let ranked = recommend(
-            Some(&inventory),
+            Some(&Account::new(inventory)),
             &catalog,
             &ItemTable::build(&catalog),
             &unpriced,

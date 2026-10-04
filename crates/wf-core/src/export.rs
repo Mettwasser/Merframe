@@ -41,32 +41,17 @@ fn write<T: Serialize>(dir: &Path, name: &str, value: &T) -> Result<()> {
 mod tests {
     use super::*;
     use crate::catalog::fixtures;
-    use crate::favourites::Favourites;
-    use crate::identity::ItemTable;
-    use crate::listings::MarketListings;
-    use crate::prices::FixedPrices;
-    use crate::view::View;
+    use crate::view::Fixture;
     use crate::{foundry, inventory_view, rivens};
 
     #[test]
     fn one_file_per_tab() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::catalog();
-        let prices = FixedPrices::default();
-        let favourites = Favourites::default();
-        let listings = MarketListings::default();
-        let inventory_tab = inventory_view::tab(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices,
-            favourites: &favourites,
-            listings: &listings,
-        });
-        let rivens_tab = rivens::Grader::new(&catalog, &ItemTable::build(&catalog), &[], None)
-            .tab(&inventory, &listings);
+        let fixture = Fixture::new(fixtures::catalog(), fixtures::inventory());
+        let inventory_tab = inventory_view::tab(&fixture.view());
+        let rivens_tab = rivens::Grader::new(&fixture.catalog, &fixture.items, &[], None)
+            .tab(&fixture.account.inventory, &fixture.listings);
         let now = chrono::DateTime::from_timestamp_millis(1_788_807_069_000).unwrap();
-        let foundry_tab = foundry::tab(&inventory, &catalog, None, None, now, &favourites);
+        let foundry_tab = foundry::tab(&fixture.view(), None, None, now);
 
         let dir = std::env::temp_dir().join("wf-core-export-test");
         if dir.exists() {

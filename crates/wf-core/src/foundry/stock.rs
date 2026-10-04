@@ -6,98 +6,132 @@ use wf_inventory::{CountedItem, Inventory};
 use crate::catalog::{FORMA_BLUEPRINT, FORMA_ITEM, builds_from_its_own_blueprint};
 use crate::identity::ambassador_blueprint;
 
-fn first_count(items: &[CountedItem], item_type: &str) -> Option<i64> {
-    items
-        .iter()
-        .find(|item| item.item_type == item_type)
-        .map(|item| item.item_count)
+pub(crate) struct FoundryStock {
+    recipes: HashMap<String, i64>,
+    misc: HashMap<String, i64>,
+    weapons: HashMap<String, i64>,
+    collected: HashMap<String, i64>,
 }
 
-#[allow(
-    clippy::cast_possible_wrap,
-    reason = "an inventory holds far fewer than 2^63 weapons"
-)]
-fn weapon_instances(inventory: &Inventory, unique_name: &str) -> Option<i64> {
-    let count = [&inventory.melee, &inventory.pistols, &inventory.long_guns]
-        .into_iter()
-        .flatten()
-        .filter(|item| item.item_type == unique_name)
-        .count();
-    (count > 0).then_some(count as i64)
+fn first_counts(items: &[CountedItem]) -> HashMap<String, i64> {
+    let mut counts = HashMap::new();
+    for item in items {
+        counts
+            .entry(item.item_type.clone())
+            .or_insert(item.item_count);
+    }
+    counts
 }
 
-fn held_count(inventory: &Inventory, unique_name: &str) -> i64 {
-    if unique_name.contains("Blueprint") {
-        return first_count(&inventory.recipes, unique_name).unwrap_or_default();
-    }
-    if unique_name.contains("Weapons")
-        && let Some(count) = weapon_instances(inventory, unique_name)
-    {
-        return count;
-    }
-    if let Some(count) = first_count(&inventory.misc_items, unique_name) {
-        return count;
-    }
-    if unique_name.contains("Component") {
-        return first_count(
-            &inventory.recipes,
-            &unique_name.replace("Component", "Blueprint"),
-        )
-        .unwrap_or_default();
-    }
-    0
-}
-
-pub(super) fn component_stock(inventory: &Inventory, unique_name: &str, name: &str) -> i64 {
-    if let Some(blueprint) = ambassador_blueprint(unique_name) {
-        return held_count(inventory, &blueprint);
-    }
-    if name.contains("Forma") {
-        return held_count(inventory, FORMA_ITEM) + held_count(inventory, FORMA_BLUEPRINT);
-    }
-    let built = held_count(inventory, unique_name);
-    if builds_from_its_own_blueprint(unique_name) {
-        return built + held_count(inventory, &format!("{unique_name}Blueprint"));
-    }
-    built
-}
-
-#[allow(
-    clippy::cast_possible_wrap,
-    reason = "an inventory holds far fewer than 2^63 items"
-)]
-fn every_collection_count(inventory: &Inventory, unique_name: &str) -> i64 {
-    let equipment = inventory
-        .equipment()
-        .filter(|item| item.item_type == unique_name)
-        .count() as i64;
-    let misc: i64 = inventory
-        .misc_items
-        .iter()
-        .filter(|item| item.item_type == unique_name)
-        .map(|item| item.item_count)
-        .sum();
-    let recipes: i64 = inventory
-        .recipes
-        .iter()
-        .filter(|item| item.item_type == unique_name)
-        .map(|item| {
-            if item.item_count == 0 {
+impl FoundryStock {
+    pub(crate) fn new(inventory: &Inventory) -> Self {
+        let mut weapons: HashMap<String, i64> = HashMap::new();
+        for item in [&inventory.melee, &inventory.pistols, &inventory.long_guns]
+            .into_iter()
+            .flatten()
+        {
+            *weapons.entry(item.item_type.clone()).or_insert(0) += 1;
+        }
+        let mut collected: HashMap<String, i64> = HashMap::new();
+        for item in inventory.equipment() {
+            *collected.entry(item.item_type.clone()).or_insert(0) += 1;
+        }
+        for item in &inventory.misc_items {
+            *collected.entry(item.item_type.clone()).or_insert(0) += item.item_count;
+        }
+        for item in &inventory.recipes {
+            *collected.entry(item.item_type.clone()).or_insert(0) += if item.item_count == 0 {
                 1
             } else {
                 item.item_count
-            }
-        })
-        .sum();
-    equipment + misc + recipes
-}
-
-pub(super) fn tree_stock(inventory: &Inventory, unique_name: &str) -> i64 {
-    let stock = every_collection_count(inventory, unique_name);
-    if stock > 0 || !unique_name.ends_with("Component") {
-        return stock;
+            };
+        }
+        Self {
+            recipes: first_counts(&inventory.recipes),
+            misc: first_counts(&inventory.misc_items),
+            weapons,
+            collected,
+        }
     }
-    every_collection_count(inventory, &unique_name.replace("Component", "Blueprint"))
+
+    fn held(&self, unique_name: &str) -> i64 {
+        if unique_name.contains("Blueprint") {
+            return self.recipes.get(unique_name).copied().unwrap_or_default();
+        }
+        if unique_name.contains("Weapons")
+            && let Some(count) = self.weapons.get(unique_name)
+        {
+            return *count;
+        }
+        if let Some(count) = self.misc.get(unique_name) {
+            return *count;
+        }
+        if unique_name.contains("Component") {
+            return self
+                .recipes
+                .get(&unique_name.replace("Component", "Blueprint"))
+                .copied()
+                .unwrap_or_default();
+        }
+        0
+    }
+
+    pub(super) fn component(&self, unique_name: &str, name: &str) -> i64 {
+        if let Some(blueprint) = ambassador_blueprint(unique_name) {
+            return self.held(&blueprint);
+        }
+        if name.contains("Forma") {
+            return self.held(FORMA_ITEM) + self.held(FORMA_BLUEPRINT);
+        }
+        let built = self.held(unique_name);
+        if builds_from_its_own_blueprint(unique_name) {
+            return built + self.held(&format!("{unique_name}Blueprint"));
+        }
+        built
+    }
+
+    fn collected(&self, unique_name: &str) -> i64 {
+        self.collected.get(unique_name).copied().unwrap_or_default()
+    }
+
+    pub(super) fn in_tree(&self, unique_name: &str) -> i64 {
+        let stock = self.collected(unique_name);
+        if stock > 0 || !unique_name.ends_with("Component") {
+            return stock;
+        }
+        self.collected(&unique_name.replace("Component", "Blueprint"))
+    }
+
+    pub(super) fn fill_slots(&self, components: &[Component]) -> Vec<SlotFill> {
+        let stock: Vec<i64> = components
+            .iter()
+            .map(|component| self.component(&component.unique_name, &component.name))
+            .collect();
+        let mut shared: HashMap<&str, i64> = HashMap::new();
+        for (component, held) in components.iter().zip(&stock) {
+            let entry = shared.entry(component.unique_name.as_str()).or_insert(0);
+            *entry = (*entry).max(*held);
+        }
+        components
+            .iter()
+            .zip(stock)
+            .map(|(component, held)| {
+                let required = i64::from(component.item_count);
+                let left = shared.entry(component.unique_name.as_str()).or_insert(0);
+                let filled = if *left < required {
+                    std::mem::take(left)
+                } else {
+                    *left -= required;
+                    held
+                };
+                SlotFill {
+                    required,
+                    filled,
+                    satisfied: filled >= required,
+                }
+            })
+            .collect()
+    }
 }
 
 pub(super) struct SlotFill {
@@ -106,33 +140,53 @@ pub(super) struct SlotFill {
     pub satisfied: bool,
 }
 
-pub(super) fn fill_slots(inventory: &Inventory, components: &[Component]) -> Vec<SlotFill> {
-    let stock: Vec<i64> = components
-        .iter()
-        .map(|component| component_stock(inventory, &component.unique_name, &component.name))
-        .collect();
-    let mut shared: HashMap<&str, i64> = HashMap::new();
-    for (component, held) in components.iter().zip(&stock) {
-        let entry = shared.entry(component.unique_name.as_str()).or_insert(0);
-        *entry = (*entry).max(*held);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::catalog::fixtures;
+
+    const SINGLE_KAMA: &str = "/Lotus/Weapons/Tenno/Melee/DualKamas/SingleKama";
+    const SYSTEMS_BLUEPRINT: &str =
+        "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeSystemsBlueprint";
+    const SYSTEMS: &str = "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeSystemsComponent";
+    const SNIPER_BARREL: &str = "/Lotus/Types/Recipes/Weapons/WeaponParts/CrpArSniperBarrel";
+    const AMBASSADOR_BARREL_BLUEPRINT: &str =
+        "/Lotus/Types/Recipes/Weapons/WeaponParts/AmbassadorBarrelBlueprint";
+    const KEY_BLUEPRINT: &str = "/Lotus/Types/Recipes/Components/DerelictKeyBlueprint";
+
+    fn stock() -> FoundryStock {
+        FoundryStock::new(&fixtures::inventory_stocked(
+            &[("Melee", SINGLE_KAMA), ("Melee", SINGLE_KAMA)],
+            &[
+                ("Recipes", SYSTEMS_BLUEPRINT, 3),
+                ("Recipes", SYSTEMS_BLUEPRINT, 4),
+                ("Recipes", AMBASSADOR_BARREL_BLUEPRINT, 1),
+                ("Recipes", KEY_BLUEPRINT, 0),
+                ("Recipes", FORMA_BLUEPRINT, 2),
+                ("MiscItems", FORMA_ITEM, 5),
+            ],
+        ))
     }
-    components
-        .iter()
-        .zip(stock)
-        .map(|(component, held)| {
-            let required = i64::from(component.item_count);
-            let left = shared.entry(component.unique_name.as_str()).or_insert(0);
-            let filled = if *left < required {
-                std::mem::take(left)
-            } else {
-                *left -= required;
-                held
-            };
-            SlotFill {
-                required,
-                filled,
-                satisfied: filled >= required,
-            }
-        })
-        .collect()
+
+    #[test]
+    fn component_counts() {
+        let stock = stock();
+        assert_eq!(stock.component(SINGLE_KAMA, "Kama"), 2);
+        assert_eq!(stock.component(SYSTEMS_BLUEPRINT, "Blueprint"), 3);
+        assert_eq!(stock.component(SYSTEMS, "Systems"), 3);
+        assert_eq!(stock.component(SNIPER_BARREL, "Barrel"), 1);
+        assert_eq!(stock.component(FORMA_ITEM, "Forma"), 7);
+        assert_eq!(stock.component(KEY_BLUEPRINT, "Blueprint"), 0);
+    }
+
+    #[test]
+    fn tree_counts() {
+        let stock = stock();
+        assert_eq!(stock.in_tree(SINGLE_KAMA), 2);
+        assert_eq!(stock.in_tree(SYSTEMS_BLUEPRINT), 7);
+        assert_eq!(stock.in_tree(SYSTEMS), 7);
+        assert_eq!(stock.in_tree(KEY_BLUEPRINT), 1);
+        assert_eq!(stock.in_tree(FORMA_ITEM), 5);
+        assert_eq!(stock.in_tree(SNIPER_BARREL), 0);
+    }
 }

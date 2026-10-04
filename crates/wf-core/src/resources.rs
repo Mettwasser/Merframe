@@ -87,23 +87,15 @@ pub(crate) fn tab(
     include_founders: Option<bool>,
     now: DateTime<Utc>,
 ) -> ResourcesTab {
-    let held = held_recipes(view.inventory);
-    let stock = Stock::new(view.inventory);
-    let items = foundry::items(
-        view.inventory,
-        view.catalog,
-        None,
-        include_founders,
-        now,
-        view.favourites,
-    );
+    let inventory = &view.account.inventory;
+    let stock = &view.account.stock;
+    let held = held_recipes(inventory);
+    let items = foundry::items(view, None, include_founders, now);
     let mut rows: BTreeMap<String, ResourceRow> = BTreeMap::new();
     let mut counted = 0;
     let mut credits = 0;
     for item in items.iter().filter(|item| selected(item, &held, query)) {
-        let Some(details) =
-            foundry::details(view.inventory, view.catalog, view.prices, &item.unique_name)
-        else {
+        let Some(details) = foundry::details(view, &item.unique_name) else {
             continue;
         };
         let mut needed: BTreeMap<&str, (&CraftNode, i64)> = BTreeMap::new();
@@ -153,7 +145,7 @@ pub(crate) fn tab(
     resources.sort_by(|left, right| left.name.cmp(&right.name));
     ResourcesTab {
         resources,
-        shards: shards(view.inventory, view.catalog, &stock),
+        shards: shards(inventory, view.catalog, stock),
         items: counted,
         credits,
     }
@@ -168,7 +160,7 @@ const SHARD_COLOURS: [(&str, &str); 6] = [
     ("Violet", "ACC_PURPLE"),
 ];
 
-fn shards(inventory: &Inventory, catalog: &Catalog, stock: &Stock<'_>) -> Vec<ShardRow> {
+fn shards(inventory: &Inventory, catalog: &Catalog, stock: &Stock) -> Vec<ShardRow> {
     SHARD_COLOURS
         .iter()
         .filter_map(|(tail, colour)| {
@@ -278,9 +270,7 @@ mod tests {
     use super::*;
     use crate::catalog::{Catalog, fixtures};
     use crate::favourites::Favourites;
-    use crate::identity::ItemTable;
-    use crate::listings::MarketListings;
-    use crate::prices::FixedPrices;
+    use crate::view::Fixture;
 
     const NOW_MS: i64 = 1_788_807_069_000;
     const BRATON_PRIME: &str = "/Lotus/Weapons/Tenno/Rifle/BratonPrime";
@@ -290,23 +280,9 @@ mod tests {
     const EXCALIBUR: &str = "/Lotus/Powersuits/Excalibur/Excalibur";
     const OROKIN_CELL: &str = "/Lotus/Types/Items/MiscItems/OrokinCell";
 
-    fn resources(
-        inventory: &Inventory,
-        catalog: &Catalog,
-        favourites: &Favourites,
-        source: ResourceSource,
-        scope: ResourceScope,
-    ) -> ResourcesTab {
-        let view = View {
-            inventory,
-            catalog,
-            items: &ItemTable::build(catalog),
-            prices: &FixedPrices::default(),
-            favourites,
-            listings: &MarketListings::default(),
-        };
+    fn resources(fixture: &Fixture, source: ResourceSource, scope: ResourceScope) -> ResourcesTab {
         tab(
-            &view,
+            &fixture.view(),
             &ResourceQuery {
                 source,
                 scope,
@@ -384,9 +360,7 @@ mod tests {
     #[test]
     fn nothing_held_towards_mastery() {
         let tab = resources(
-            &fixtures::inventory(),
-            &fixtures::catalog(),
-            &Favourites::default(),
+            &Fixture::new(fixtures::catalog(), fixtures::inventory()),
             ResourceSource::Held,
             ResourceScope::Mastery,
         );
@@ -397,12 +371,8 @@ mod tests {
 
     #[test]
     fn braton_prime_requirements() {
-        let catalog = fixtures::catalog();
-        let three = holding(BRATON_PRIME_BLUEPRINT, 3);
         let tab = resources(
-            &three,
-            &catalog,
-            &Favourites::default(),
+            &Fixture::new(fixtures::catalog(), holding(BRATON_PRIME_BLUEPRINT, 3)),
             ResourceSource::Held,
             ResourceScope::All,
         );
@@ -425,9 +395,7 @@ mod tests {
         assert_eq!(tab.credits, 15_000 + 25_000);
 
         let stacked = resources(
-            &holding(BRATON_PRIME_BLUEPRINT, 1000),
-            &catalog,
-            &Favourites::default(),
+            &Fixture::new(fixtures::catalog(), holding(BRATON_PRIME_BLUEPRINT, 1000)),
             ResourceSource::Held,
             ResourceScope::All,
         );
@@ -437,9 +405,10 @@ mod tests {
         );
 
         let with_skins = resources(
-            &three,
-            &fixtures::with_skins(fixtures::ITEMS),
-            &Favourites::default(),
+            &Fixture::new(
+                fixtures::with_skins(fixtures::ITEMS),
+                holding(BRATON_PRIME_BLUEPRINT, 3),
+            ),
             ResourceSource::Held,
             ResourceScope::All,
         );
@@ -450,9 +419,7 @@ mod tests {
     fn deficit_without_stock() {
         let inventory = fixtures::inventory_stocked(&[], &[("Recipes", BRATON_PRIME_BLUEPRINT, 1)]);
         let tab = resources(
-            &inventory,
-            &fixtures::catalog(),
-            &Favourites::default(),
+            &Fixture::new(fixtures::catalog(), inventory),
             ResourceSource::Held,
             ResourceScope::All,
         );
@@ -465,29 +432,31 @@ mod tests {
 
     #[test]
     fn scope_filters() {
-        let inventory = Inventory::parse(&unbuilt_braton_prime()).unwrap();
-        let catalog = fixtures::catalog();
-        let scoped = |scope, favourites: &Favourites| {
+        let scoped = |scope, favourites: Favourites| {
             resources(
-                &inventory,
-                &catalog,
-                favourites,
+                &Fixture {
+                    favourites,
+                    ..Fixture::new(
+                        fixtures::catalog(),
+                        Inventory::parse(&unbuilt_braton_prime()).unwrap(),
+                    )
+                },
                 ResourceSource::Craftable,
                 scope,
             )
         };
 
-        let mastery = scoped(ResourceScope::Mastery, &Favourites::default());
+        let mastery = scoped(ResourceScope::Mastery, Favourites::default());
         assert_eq!(names(&mastery), ["Braton Prime"]);
         assert_eq!(mastery.credits, 15_000);
 
-        let all = scoped(ResourceScope::All, &Favourites::default());
+        let all = scoped(ResourceScope::All, Favourites::default());
         assert_eq!(names(&all), ["Braton Prime", "Excalibur", "Trinity Prime"]);
         assert_eq!(row(&all, OROKIN_CELL).required, 12);
 
         let starred = scoped(
             ResourceScope::Starred,
-            &[EXCALIBUR.to_owned()].into_iter().collect(),
+            [EXCALIBUR.to_owned()].into_iter().collect(),
         );
         assert_eq!(names(&starred), ["Excalibur"]);
         assert!(row(&starred, OROKIN_CELL).used_by[0].favourite);
@@ -496,19 +465,13 @@ mod tests {
 
     #[test]
     fn kind_prime_and_owned_filters() {
-        let inventory = Inventory::parse(&unbuilt_braton_prime()).unwrap();
-        let catalog = fixtures::catalog();
-        let view = View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &FixedPrices::default(),
-            favourites: &Favourites::default(),
-            listings: &MarketListings::default(),
-        };
+        let fixture = Fixture::new(
+            fixtures::catalog(),
+            Inventory::parse(&unbuilt_braton_prime()).unwrap(),
+        );
         let filtered = |kind: Option<&str>, prime, owned| {
             tab(
-                &view,
+                &fixture.view(),
                 &ResourceQuery {
                     source: ResourceSource::Craftable,
                     scope: ResourceScope::All,
@@ -548,12 +511,9 @@ mod tests {
 
     #[test]
     fn source_filters() {
-        let catalog = fixtures::catalog();
         let sourced = |inventory: &Inventory, source| {
             resources(
-                inventory,
-                &catalog,
-                &Favourites::default(),
+                &Fixture::new(fixtures::catalog(), inventory.clone()),
                 source,
                 ResourceScope::Mastery,
             )
@@ -575,9 +535,7 @@ mod tests {
     #[test]
     fn a_part_recipe_selects_the_item() {
         let tab = resources(
-            &holding(BRATON_PRIME_BARREL, 2),
-            &fixtures::catalog(),
-            &Favourites::default(),
+            &Fixture::new(fixtures::catalog(), holding(BRATON_PRIME_BARREL, 2)),
             ResourceSource::Held,
             ResourceScope::All,
         );
@@ -599,9 +557,7 @@ mod tests {
         );
         let inventory = Inventory::parse(&json).unwrap();
         let tab = resources(
-            &inventory,
-            &fixtures::catalog(),
-            &Favourites::default(),
+            &Fixture::new(fixtures::catalog(), inventory),
             ResourceSource::Craftable,
             ResourceScope::All,
         );
@@ -611,9 +567,7 @@ mod tests {
     #[test]
     fn every_item_that_needs_a_resource_is_listed() {
         let tab = resources(
-            &fixtures::inventory(),
-            &fixtures::foundry_catalog(),
-            &Favourites::default(),
+            &Fixture::new(fixtures::foundry_catalog(), fixtures::inventory()),
             ResourceSource::Craftable,
             ResourceScope::All,
         );
@@ -657,9 +611,7 @@ mod tests {
         const SINGLE_KAMA: &str = "/Lotus/Weapons/Tenno/Melee/DualKamas/SingleKama";
         let inventory = fixtures::inventory_stocked(&[("Melee", SINGLE_KAMA)], &[]);
         let tab = resources(
-            &inventory,
-            &fixtures::foundry_catalog(),
-            &Favourites::default(),
+            &Fixture::new(fixtures::foundry_catalog(), inventory),
             ResourceSource::Craftable,
             ResourceScope::All,
         );
@@ -673,9 +625,10 @@ mod tests {
 
         let misc = include_str!("../../../fixtures/misc_items.json");
         let tab = resources(
-            &fixtures::inventory_owning(&[(AMBER, 7), (TAUFORGED_AMBER, 2)]),
-            &Catalog::from_json(misc, fixtures::RELICS, fixtures::COMPONENTS).unwrap(),
-            &Favourites::default(),
+            &Fixture::new(
+                Catalog::from_json(misc, fixtures::RELICS, fixtures::COMPONENTS).unwrap(),
+                fixtures::inventory_owning(&[(AMBER, 7), (TAUFORGED_AMBER, 2)]),
+            ),
             ResourceSource::Held,
             ResourceScope::Mastery,
         );
@@ -712,9 +665,7 @@ mod tests {
     #[test]
     fn the_whole_catalog_is_walked() {
         let tab = resources(
-            &fixtures::inventory(),
-            &fixtures::mastery_catalog(),
-            &Favourites::default(),
+            &Fixture::new(fixtures::mastery_catalog(), fixtures::inventory()),
             ResourceSource::Craftable,
             ResourceScope::All,
         );

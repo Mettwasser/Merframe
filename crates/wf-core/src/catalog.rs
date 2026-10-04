@@ -109,14 +109,18 @@ impl Catalog {
     }
 }
 
-pub(crate) struct Stock<'a> {
-    counts: HashMap<&'a str, i64>,
+pub(crate) struct Stock {
+    counts: HashMap<String, i64>,
 }
 
-impl<'a> Stock<'a> {
-    pub fn new(inventory: &'a wf_inventory::Inventory) -> Self {
+impl Stock {
+    pub fn new(inventory: &wf_inventory::Inventory) -> Self {
         Self {
-            counts: inventory.counted_index(),
+            counts: inventory
+                .counted_index()
+                .into_iter()
+                .map(|(item_type, count)| (item_type.to_owned(), count))
+                .collect(),
         }
     }
 

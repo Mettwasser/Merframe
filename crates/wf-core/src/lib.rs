@@ -1,3 +1,4 @@
+mod account;
 mod catalog;
 mod comparables;
 mod delta;

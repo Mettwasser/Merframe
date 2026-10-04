@@ -165,8 +165,9 @@ fn record_row(view: &View, unique_name: &str, record: &ItemRecord, count: i64) -
 
 fn counted_rows(view: &View) -> Vec<MiscRow> {
     let View {
-        inventory, catalog, ..
+        account, catalog, ..
     } = *view;
+    let inventory = &account.inventory;
     let mut counted: BTreeMap<(&str, Option<SculptureStars>), i64> = BTreeMap::new();
     for item in inventory
         .misc_items
@@ -204,8 +205,9 @@ fn counted_rows(view: &View) -> Vec<MiscRow> {
 
 fn cosmetic_rows(view: &View) -> Vec<MiscRow> {
     let View {
-        inventory, catalog, ..
+        account, catalog, ..
     } = *view;
+    let inventory = &account.inventory;
     let mut counted: BTreeMap<&str, i64> = BTreeMap::new();
     for skin in &inventory.weapon_skins {
         if is_misc(&skin.item_type) && is_tradable_misc(catalog, &skin.item_type) {
@@ -234,7 +236,7 @@ fn cosmetic_rows(view: &View) -> Vec<MiscRow> {
 
 fn pet_print_rows(view: &View) -> Vec<MiscRow> {
     let mut counted: BTreeMap<&str, i64> = BTreeMap::new();
-    for print in &view.inventory.kubrow_pet_prints {
+    for print in &view.account.inventory.kubrow_pet_prints {
         *counted
             .entry(print.dominant_traits.personality.as_str())
             .or_insert(0) += 1;
@@ -250,7 +252,7 @@ fn pet_print_rows(view: &View) -> Vec<MiscRow> {
 
 fn spare_equipment_rows(view: &View) -> Vec<MiscRow> {
     let mut counted: BTreeMap<&str, i64> = BTreeMap::new();
-    for owned in spare_weapons(view.inventory) {
+    for owned in spare_weapons(&view.account.inventory) {
         if owned.xp == 0 && is_spare_weapon_stock(&owned.item_type) {
             *counted.entry(owned.item_type.as_str()).or_insert(0) += 1;
         }
@@ -268,13 +270,11 @@ fn spare_equipment_rows(view: &View) -> Vec<MiscRow> {
 mod tests {
     use std::collections::HashSet;
 
-    use super::super::tests::{no_listings, prices};
+    use super::super::tests::prices;
     use super::*;
-    use crate::catalog::display_name_from_path;
-    use crate::catalog::fixtures;
-    use crate::favourites::Favourites;
-    use crate::identity::ItemTable;
+    use crate::catalog::{display_name_from_path, fixtures};
     use crate::prices::FixedPrices;
+    use crate::view::Fixture;
 
     const MISC_ITEMS: &str = r#"[
       {"uniqueName":"/Lotus/Weapons/Corpus/Pistols/CrpHandRL/PrismaAngstrum",
@@ -350,16 +350,8 @@ mod tests {
 
     #[test]
     fn tradable_oddments() {
-        let inventory = fixtures::inventory();
-        let catalog = misc_catalog();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
         assert!(!rows.is_empty());
         assert!(rows.iter().all(|row| row.count > 0));
         assert!(
@@ -390,24 +382,20 @@ mod tests {
 
     #[test]
     fn no_owned_cosmetic_is_tradable() {
-        let inventory = fixtures::inventory();
-        let catalog = misc_catalog();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
 
-        let skins: HashSet<&str> = inventory
+        let skins: HashSet<&str> = fixture
+            .account
+            .inventory
             .weapon_skins
             .iter()
             .map(|skin| skin.item_type.as_str())
             .filter(|item_type| is_misc(item_type))
             .collect();
-        let flavour: HashSet<&str> = inventory
+        let flavour: HashSet<&str> = fixture
+            .account
+            .inventory
             .flavour_items
             .iter()
             .map(|flavour| flavour.item_type.as_str())
@@ -448,15 +436,8 @@ mod tests {
 
     #[test]
     fn cosmetic_names_from_export() {
-        let inventory = fixtures::inventory();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &misc_catalog(),
-            items: &ItemTable::build(&misc_catalog()),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
         let row = |unique_name: &str| {
             rows.iter()
                 .find(|row| row.unique_name == unique_name)
@@ -468,7 +449,9 @@ mod tests {
         assert_eq!(scene.name, "The Drifter Camp Scene");
         assert!(scene.image_name.is_some());
 
-        let owned_emotes: HashSet<&str> = inventory
+        let owned_emotes: HashSet<&str> = fixture
+            .account
+            .inventory
             .flavour_items
             .iter()
             .map(|flavour| flavour.item_type.as_str())
@@ -557,31 +540,27 @@ mod tests {
 
     #[test]
     fn spare_weapons_from_slots() {
-        let inventory = fixtures::inventory_stocked(
-            &[
-                ("LongGuns", OPTICOR_VANDAL),
-                (
-                    "LongGuns",
-                    "/Lotus/Weapons/ClanTech/Chemical/FlameThrowerWraith",
-                ),
-                ("Pistols", ZYLOK),
-                ("Pistols", GAMMACOR),
-                (
-                    "Sentinels",
-                    "/Lotus/Types/Sentinels/SentinelPowersuits/PrismaShadePowerSuit",
-                ),
-            ],
-            &[],
-        );
-        let catalog = Catalog::from_json(SPARE_WEAPONS, fixtures::RELICS, "[]").unwrap();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(
+            Catalog::from_json(SPARE_WEAPONS, fixtures::RELICS, "[]").unwrap(),
+            fixtures::inventory_stocked(
+                &[
+                    ("LongGuns", OPTICOR_VANDAL),
+                    (
+                        "LongGuns",
+                        "/Lotus/Weapons/ClanTech/Chemical/FlameThrowerWraith",
+                    ),
+                    ("Pistols", ZYLOK),
+                    ("Pistols", GAMMACOR),
+                    (
+                        "Sentinels",
+                        "/Lotus/Types/Sentinels/SentinelPowersuits/PrismaShadePowerSuit",
+                    ),
+                ],
+                &[],
+            ),
+        )
+        .with_prices(prices());
+        let rows = misc(&fixture.view());
         let listed = |name: &str| rows.iter().any(|row| row.name == name);
         assert!(listed("Opticor Vandal"));
         assert!(listed("Zylok"));
@@ -598,17 +577,14 @@ mod tests {
 
     #[test]
     fn faction_weapons_and_imprints() {
-        let inventory = fixtures::inventory();
-        let catalog = Catalog::from_json(MISC_ITEMS, fixtures::RELICS, "[]").unwrap();
-        let prices = FixedPrices::new([("prisma_angstrum", 32.0), ("vasca_kavat_imprint", 15.0)]);
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices,
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture {
+            prices: FixedPrices::new([("prisma_angstrum", 32.0), ("vasca_kavat_imprint", 15.0)]),
+            ..Fixture::new(
+                Catalog::from_json(MISC_ITEMS, fixtures::RELICS, "[]").unwrap(),
+                fixtures::inventory(),
+            )
+        };
+        let rows = misc(&fixture.view());
 
         let angstrum: Vec<&MiscRow> = rows
             .iter()
@@ -671,19 +647,11 @@ mod tests {
 
     #[test]
     fn no_path_derived_names() {
-        let inventory = fixtures::inventory();
-        let catalog = misc_catalog();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
         let unresolved: Vec<&str> = rows
             .iter()
-            .filter(|row| path_derived(&catalog, row))
+            .filter(|row| path_derived(&fixture.catalog, row))
             .map(|row| row.unique_name.as_str())
             .collect();
         assert!(
@@ -691,15 +659,11 @@ mod tests {
             "path-derived rows left: {unresolved:?}"
         );
 
-        let without_catches = misc_catalog_without(&["Fish"]);
-        let narrowed = misc(&View {
-            inventory: &inventory,
-            catalog: &without_catches,
-            items: &ItemTable::build(&without_catches),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let narrowed = misc(
+            &Fixture::new(misc_catalog_without(&["Fish"]), fixtures::inventory())
+                .with_prices(prices())
+                .view(),
+        );
         assert!(
             !narrowed
                 .iter()
@@ -711,16 +675,8 @@ mod tests {
 
     #[test]
     fn fish_sizes_share_one_market_item() {
-        let inventory = fixtures::inventory();
-        let catalog = misc_catalog();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
         let market = |unique_name: &str| {
             rows.iter()
                 .find(|row| row.unique_name == unique_name)
@@ -747,16 +703,8 @@ mod tests {
 
     #[test]
     fn fish_names() {
-        let inventory = fixtures::inventory();
-        let catalog = misc_catalog();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
         let name = |unique_name: &str| {
             rows.iter()
                 .find(|row| row.unique_name == unique_name)
@@ -790,16 +738,8 @@ mod tests {
 
     #[test]
     fn curated_rows_without_image() {
-        let inventory = fixtures::inventory();
-        let catalog = misc_catalog();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
         let without_image: Vec<(&str, &str)> = rows
             .iter()
             .filter(|row| row.image_name.is_none())
@@ -816,16 +756,8 @@ mod tests {
 
     #[test]
     fn sculptures_split_by_filled_stars() {
-        let inventory = fixtures::inventory();
-        let catalog = misc_catalog();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
         let sah: Vec<_> = rows
             .iter()
             .filter(|row| row.unique_name == "/Lotus/Types/Items/FusionTreasures/OroFusexA")
@@ -965,16 +897,8 @@ mod tests {
 
     #[test]
     fn fixture_misc_families() {
-        let inventory = fixtures::inventory();
-        let catalog = misc_catalog();
-        let rows = misc(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture = Fixture::new(misc_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = misc(&fixture.view());
         assert_eq!(rows.len(), 44);
         let expected: BTreeMap<&str, usize> = [
             ("faction weapons", 1),
@@ -989,7 +913,7 @@ mod tests {
         .into_iter()
         .collect();
         assert_eq!(
-            misc_families(&inventory, &rows),
+            misc_families(&fixture.account.inventory, &rows),
             expected,
             "helmet skins, flavour items outside the export, non-syndicate emotes and orbiter decorations stay out"
         );

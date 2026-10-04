@@ -9,6 +9,7 @@ use wf_log::Event as LogEvent;
 use wf_market::{RivenAttribute, RivenData, WeaponAuctions};
 use wf_worldstate::WorldState;
 
+use crate::account::Account;
 use crate::catalog::{Catalog, REQUIEM_MARKER};
 use crate::comparables::{self, ComparedStat, RivenComparables};
 use crate::delta;
@@ -58,7 +59,7 @@ pub struct Core {
     items: ItemTable,
     prices: Arc<dyn PriceSource + Send + Sync>,
     engine: Engine,
-    inventory: Option<Inventory>,
+    account: Option<Account>,
     world: Option<WorldState>,
     riven_attributes: Vec<RivenAttribute>,
     riven_data: Option<RivenData>,
@@ -84,7 +85,7 @@ impl Core {
             catalog,
             prices,
             engine: Engine::new(alerts),
-            inventory: None,
+            account: None,
             world: None,
             riven_attributes: Vec::new(),
             riven_data: None,
@@ -132,7 +133,7 @@ impl Core {
     }
 
     pub fn inventory(&self) -> Option<&Inventory> {
-        self.inventory.as_ref()
+        self.account.as_ref().map(|account| &account.inventory)
     }
 
     pub fn load_snapshot(&mut self) -> Result<Option<Snapshot>> {
@@ -149,7 +150,7 @@ impl Core {
             "Snapshot restored as the current inventory"
         );
         self.latest_snapshot = Some(snapshot.id);
-        self.inventory = Some(inventory);
+        self.account = Some(Account::new(inventory));
         Ok(Some(snapshot))
     }
 
@@ -172,7 +173,7 @@ impl Core {
         tracing::info!(snapshot = id.0, changes, "Inventory ingested");
         self.latest_snapshot = Some(id);
         let events = events::inventory_events(&inventory, changes);
-        self.inventory = Some(inventory);
+        self.account = Some(Account::new(inventory));
         Ok(events)
     }
 
@@ -272,7 +273,7 @@ impl Core {
 
     fn view(&self) -> Option<View<'_>> {
         Some(View {
-            inventory: self.inventory.as_ref()?,
+            account: self.account.as_ref()?,
             catalog: &self.catalog,
             items: &self.items,
             prices: self.prices.as_ref(),
@@ -283,7 +284,7 @@ impl Core {
 
     pub fn market_stock(&self) -> Option<MarketStock<'_>> {
         Some(MarketStock {
-            inventory: self.inventory.as_ref()?,
+            inventory: &self.account.as_ref()?.inventory,
             catalog: &self.catalog,
         })
     }
@@ -297,20 +298,16 @@ impl Core {
         include_founders: Option<bool>,
         now: DateTime<Utc>,
     ) -> Option<FoundryTab> {
-        let inventory = self.inventory.as_ref()?;
         Some(foundry::tab(
-            inventory,
-            &self.catalog,
+            &self.view()?,
             self.world.as_ref(),
             include_founders,
             now,
-            &self.favourites,
         ))
     }
 
     pub fn craft_tree(&self, unique_name: &str) -> Option<foundry::CraftDetails> {
-        let inventory = self.inventory.as_ref()?;
-        foundry::details(inventory, &self.catalog, self.prices.as_ref(), unique_name)
+        foundry::details(&self.view()?, unique_name)
     }
 
     pub fn mastery_tab(&self, options: MasteryOptions) -> Option<MasteryTab> {
@@ -328,7 +325,7 @@ impl Core {
 
     pub fn relic_planner_tab(&self, squad_size: u32, only_owned: bool) -> Option<RelicPlannerTab> {
         let view = self.view()?;
-        let missing_parts = relic_planner::missing_parts(view.inventory, view.catalog);
+        let missing_parts = relic_planner::missing_parts(view.account, view.catalog);
         let wanted: Vec<String> = missing_parts
             .iter()
             .map(|part| part.unique_name.clone())
@@ -336,14 +333,14 @@ impl Core {
         Some(RelicPlannerTab {
             squad_size,
             only_owned,
-            void_traces: relic_planner::void_traces(view.inventory),
+            void_traces: relic_planner::void_traces(&view.account.inventory),
             plans: relic_planner::plan(&view, &wanted, squad_size, only_owned),
             missing_parts,
         })
     }
 
     pub fn owned_relic_slugs(&self) -> Option<Vec<String>> {
-        let inventory = self.inventory.as_ref()?;
+        let inventory = self.inventory()?;
         Some(
             inventory
                 .relics()
@@ -357,17 +354,17 @@ impl Core {
     }
 
     pub fn relics_for(&self, part_unique_name: &str) -> Option<Vec<RelicSource>> {
-        let inventory = self.inventory.as_ref()?;
+        let account = self.account.as_ref()?;
         Some(relic_planner::relics_for(
             part_unique_name,
-            inventory,
+            &account.stock,
             &self.catalog,
         ))
     }
 
     pub fn recommend(&self, rewards: &[String]) -> RewardScreen {
         relic_planner::recommend(
-            self.inventory.as_ref(),
+            self.account.as_ref(),
             &self.catalog,
             &self.items,
             self.prices.as_ref(),
@@ -386,7 +383,7 @@ impl Core {
     }
 
     pub fn rivens_tab(&self) -> Option<RivensTab> {
-        let inventory = self.inventory.as_ref()?;
+        let inventory = self.inventory()?;
         Some(self.grader().tab(inventory, &self.listings))
     }
 
@@ -438,8 +435,9 @@ impl Core {
     }
 
     fn set_riven_fingerprint(&mut self, item_id: &str, fingerprint: &str) -> bool {
-        let Some(upgrade) = self.inventory.as_mut().and_then(|inventory| {
-            inventory
+        let Some(upgrade) = self.account.as_mut().and_then(|account| {
+            account
+                .inventory
                 .upgrades
                 .iter_mut()
                 .find(|upgrade| upgrade.item_id.as_str() == item_id)
@@ -468,9 +466,9 @@ impl Core {
         .min();
         let span = stats::day_span(range, earliest, now);
         let summary = self
-            .inventory
+            .account
             .as_ref()
-            .map(|inventory| stats::summary(inventory, &self.catalog, &series));
+            .map(|account| stats::summary(account, &self.catalog, &series));
         Ok(StatsTab {
             relics_per_day: stats::daily_counts(
                 relic_openings.iter().map(|opening| opening.at),

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use wf_data::{DEFAULT_MAX_RANK, mastery_level_from_affinity};
 use wf_inventory::Inventory;
@@ -6,7 +6,8 @@ use wf_inventory::Inventory;
 use super::intrinsics::INTRINSIC_MASTERY_XP;
 use super::items::masterable;
 use super::star_chart::star_chart_xp;
-use crate::catalog::{Catalog, Stock};
+use crate::account::Account;
+use crate::catalog::Catalog;
 
 pub(super) const WARFRAME_AFFINITY_CAP: u64 = 900_000;
 pub(super) const WARFRAME_MASTERY_PER_RANK: u64 = 200;
@@ -21,24 +22,6 @@ pub(super) const VENARI: [(&str, &str); 2] = [
         "Venari Prime",
     ),
 ];
-
-pub(super) struct Ledger<'a> {
-    pub(super) stock: Stock<'a>,
-    affinity: HashMap<&'a str, u64>,
-}
-
-impl<'a> Ledger<'a> {
-    pub(super) fn new(inventory: &'a Inventory) -> Self {
-        Self {
-            stock: Stock::new(inventory),
-            affinity: inventory.affinity_index(),
-        }
-    }
-
-    pub(super) fn affinity_of(&self, unique_name: &str) -> u64 {
-        self.affinity.get(unique_name).copied().unwrap_or_default()
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct MasteryXp {
@@ -66,16 +49,16 @@ pub(super) fn xp_for_rank(rank: u32) -> u64 {
 }
 
 pub(super) fn counted_affinity_types<'a>(
-    inventory: &'a Inventory,
+    account: &'a Account,
     catalog: &'a Catalog,
-    ledger: &Ledger<'a>,
 ) -> HashSet<&'a str> {
     let mut counted: HashSet<&str> = masterable(catalog, true)
-        .filter(|item| ledger.affinity_of(&item.unique_name) > 0)
+        .filter(|item| account.affinity_of(&item.unique_name) > 0)
         .map(|item| item.unique_name.as_str())
         .collect();
     counted.extend(
-        inventory
+        account
+            .inventory
             .crew_ship_harnesses
             .iter()
             .map(|harness| harness.item_type.as_str()),
@@ -117,11 +100,11 @@ pub(super) fn unlisted_ranks<'a>(
         .collect()
 }
 
-pub(super) fn mastery_xp(inventory: &Inventory, catalog: &Catalog) -> MasteryXp {
-    let ledger = Ledger::new(inventory);
+pub(super) fn mastery_xp(account: &Account, catalog: &Catalog) -> MasteryXp {
+    let inventory = &account.inventory;
     let items_xp: u64 = masterable(catalog, true)
         .map(|item| {
-            let affinity = ledger.affinity_of(&item.unique_name);
+            let affinity = account.affinity_of(&item.unique_name);
             u64::from(item.mastery_per_rank() * item.mastery_rank_at(affinity))
         })
         .sum();
@@ -139,14 +122,14 @@ pub(super) fn mastery_xp(inventory: &Inventory, catalog: &Catalog) -> MasteryXp 
         .into_iter()
         .map(|(unique_name, _)| {
             mastery_level_from_affinity(
-                ledger.affinity_of(unique_name),
+                account.affinity_of(unique_name),
                 true,
                 WARFRAME_AFFINITY_CAP,
             ) * WARFRAME_MASTERY_PER_RANK
         })
         .sum();
 
-    let counted = counted_affinity_types(inventory, catalog, &ledger);
+    let counted = counted_affinity_types(account, catalog);
     let unlisted: u64 = unlisted_ranks(inventory, &counted)
         .into_iter()
         .map(|(_, per_rank, rank)| per_rank * rank)
@@ -180,9 +163,10 @@ mod tests {
 
     #[test]
     fn fixture_xp_breakdown() {
-        let inventory = fixtures::inventory();
+        let account = Account::new(fixtures::inventory());
+        let inventory = &account.inventory;
         let catalog = fixtures::mastery_catalog();
-        let breakdown = mastery_xp(&inventory, &catalog);
+        let breakdown = mastery_xp(&account, &catalog);
 
         assert_eq!(breakdown.items, 324_000);
         assert_eq!(breakdown.plexus, 6000);
@@ -192,7 +176,7 @@ mod tests {
         assert_eq!(breakdown.intrinsics, 135_000);
         assert_eq!(breakdown.total(), 535_138);
 
-        let with_skins = mastery_xp(&inventory, &fixtures::with_skins(fixtures::MASTERY_ITEMS));
+        let with_skins = mastery_xp(&account, &fixtures::with_skins(fixtures::MASTERY_ITEMS));
         assert_eq!(with_skins.items, breakdown.items);
         assert_eq!(with_skins.total(), breakdown.total());
 

@@ -45,13 +45,14 @@ fn projection_identity(unique_name: &str) -> (String, String) {
 
 pub(crate) fn relics(view: &View) -> Vec<RelicRow> {
     let View {
-        inventory,
+        account,
         catalog,
         items,
         prices,
         favourites,
         listings,
     } = *view;
+    let inventory = &account.inventory;
     let mut rows: Vec<(Refinement, RelicRow)> = inventory
         .relics()
         .filter(|(_, count)| *count > 0)
@@ -105,11 +106,10 @@ pub(crate) fn relics(view: &View) -> Vec<RelicRow> {
 mod tests {
     use std::collections::HashSet;
 
-    use super::super::tests::{no_listings, prices};
+    use super::super::tests::prices;
     use super::*;
     use crate::catalog::{Catalog, fixtures};
-    use crate::favourites::Favourites;
-    use crate::identity::ItemTable;
+    use crate::view::Fixture;
 
     const RELIC_PROJECTIONS: &str = include_str!("../../../../fixtures/relic_projections.json");
 
@@ -119,19 +119,17 @@ mod tests {
 
     #[test]
     fn every_owned_relic_resolves() {
-        let inventory = fixtures::inventory();
-        let catalog = projection_catalog();
-        let rows = relics(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(projection_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = relics(&fixture.view());
         let derived: Vec<&str> = rows
             .iter()
-            .filter(|row| catalog.relic_by_unique_name(&row.unique_name).is_none())
+            .filter(|row| {
+                fixture
+                    .catalog
+                    .relic_by_unique_name(&row.unique_name)
+                    .is_none()
+            })
             .map(|row| row.unique_name.as_str())
             .collect();
         assert!(derived.is_empty(), "{derived:?}");
@@ -142,21 +140,15 @@ mod tests {
 
     #[test]
     fn lith_g12_from_sevagoth_projection() {
-        let inventory = fixtures::inventory();
-        let catalog = projection_catalog();
-        let row = relics(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        })
-        .into_iter()
-        .find(|row| {
-            row.unique_name == "/Lotus/Types/Game/Projections/T1VoidProjectionSevagothPrimeDBronze"
-        })
-        .unwrap();
+        let fixture =
+            Fixture::new(projection_catalog(), fixtures::inventory()).with_prices(prices());
+        let row = relics(&fixture.view())
+            .into_iter()
+            .find(|row| {
+                row.unique_name
+                    == "/Lotus/Types/Game/Projections/T1VoidProjectionSevagothPrimeDBronze"
+            })
+            .unwrap();
         assert_eq!(row.relic, "Lith G12");
         assert_eq!(row.tier, "Lith");
         assert_eq!(row.refinement, "Intact");
@@ -165,16 +157,9 @@ mod tests {
 
     #[test]
     fn one_row_per_refinement() {
-        let inventory = fixtures::inventory();
-        let catalog = projection_catalog();
-        let rows = relics(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(projection_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = relics(&fixture.view());
         let counted = |refinement: &str| {
             rows.iter()
                 .filter(|row| row.refinement == refinement)
@@ -197,16 +182,9 @@ mod tests {
 
     #[test]
     fn untradable_relics_dropped() {
-        let inventory = fixtures::inventory();
-        let catalog = projection_catalog();
-        let rows = relics(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(projection_catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = relics(&fixture.view());
         assert!(
             !rows
                 .iter()
@@ -244,16 +222,9 @@ mod tests {
 
     #[test]
     fn axi_a21_row() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::catalog();
-        let rows = relics(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(fixtures::catalog(), fixtures::inventory()).with_prices(prices());
+        let rows = relics(&fixture.view());
         assert!(rows.iter().all(|row| row.count > 0));
 
         let known = rows

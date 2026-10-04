@@ -272,14 +272,8 @@ pub(crate) fn display_name(catalog: &Catalog, unique_name: &str) -> String {
 mod tests {
     use super::*;
     use crate::catalog::{fixtures, names_a_prime};
-    use crate::favourites::Favourites;
-    use crate::identity::ItemTable;
-    use crate::listings::MarketListings;
     use crate::prices::FixedPrices;
-
-    pub(super) fn no_listings() -> MarketListings {
-        MarketListings::default()
-    }
+    use crate::view::Fixture;
 
     pub(super) fn prices() -> FixedPrices {
         FixedPrices::new([
@@ -292,33 +286,25 @@ mod tests {
 
     #[test]
     fn vault_pill() {
-        let catalog = fixtures::catalog();
-        let stocked = fixtures::inventory_owning(&[(
-            "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeSystemsBlueprint",
-            1,
-        )]);
-        let view = View {
-            inventory: &stocked,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        };
-        let row = &parts(&view)[0];
+        let stocked = Fixture::new(
+            fixtures::catalog(),
+            fixtures::inventory_owning(&[(
+                "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeSystemsBlueprint",
+                1,
+            )]),
+        )
+        .with_prices(prices());
+        let row = &parts(&stocked.view())[0];
         assert!(row.vault.is_some());
 
-        let mod_rows = mods(&View {
-            inventory: &fixtures::inventory(),
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let mod_rows = mods(
+            &Fixture::new(fixtures::catalog(), fixtures::inventory())
+                .with_prices(prices())
+                .view(),
+        );
         assert!(!mod_rows.is_empty());
 
-        let sets = sets(&view);
+        let sets = sets(&stocked.view());
         assert!(
             sets.iter()
                 .all(|row| row.vault.is_some() == names_a_prime(&row.set_name))
@@ -327,16 +313,9 @@ mod tests {
 
     #[test]
     fn tab_totals() {
-        let inventory = fixtures::inventory();
-        let catalog = fixtures::catalog();
-        let tab = tab(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let fixture =
+            Fixture::new(fixtures::catalog(), fixtures::inventory()).with_prices(prices());
+        let tab = tab(&fixture.view());
         assert!(!tab.misc.is_empty());
         assert_eq!(tab.totals.len(), 6);
         let relics = tab.totals.get("relics").unwrap();
@@ -364,16 +343,9 @@ mod tests {
 
     #[test]
     fn favourites_across_tab() {
-        let inventory = favourite_fixture();
-        let catalog = fixtures::catalog();
-        let plain = tab(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        });
+        let mut fixture =
+            Fixture::new(fixtures::catalog(), favourite_fixture()).with_prices(prices());
+        let plain = tab(&fixture.view());
         for rows in [&plain.mods, &plain.arcanes] {
             assert!(!rows.is_empty());
             assert!(rows.iter().all(|row| !row.favourite));
@@ -383,7 +355,7 @@ mod tests {
         assert!(plain.misc.iter().all(|row| !row.favourite));
         assert!(plain.sets.iter().all(|row| !row.favourite));
 
-        let starred: Favourites = [
+        fixture.favourites = [
             plain.parts[0].unique_name.clone(),
             plain.mods[0].unique_name.clone(),
             plain.arcanes[0].unique_name.clone(),
@@ -392,14 +364,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let marked = tab(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &starred,
-            listings: &no_listings(),
-        });
+        let marked = tab(&fixture.view());
         assert!(marked.parts[0].favourite);
         assert!(marked.mods[0].favourite);
         assert!(marked.arcanes[0].favourite);
@@ -419,37 +384,22 @@ mod tests {
 
     #[test]
     fn favourite_set_marks_parts() {
-        let inventory = favourite_fixture();
-        let catalog = fixtures::catalog();
-        let set = sets(&View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &Favourites::default(),
-            listings: &no_listings(),
-        })
-        .into_iter()
-        .find(|row| row.set_name == "Braton Prime")
-        .expect("Braton Prime");
+        let mut fixture =
+            Fixture::new(fixtures::catalog(), favourite_fixture()).with_prices(prices());
+        let set = sets(&fixture.view())
+            .into_iter()
+            .find(|row| row.set_name == "Braton Prime")
+            .expect("Braton Prime");
         assert!(!set.favourite);
 
-        let starred: Favourites = [set.unique_name.clone()].into_iter().collect();
-        let view = View {
-            inventory: &inventory,
-            catalog: &catalog,
-            items: &ItemTable::build(&catalog),
-            prices: &prices(),
-            favourites: &starred,
-            listings: &no_listings(),
-        };
-        let marked = sets(&view)
+        fixture.favourites = [set.unique_name.clone()].into_iter().collect();
+        let marked = sets(&fixture.view())
             .into_iter()
             .find(|row| row.set_name == "Braton Prime")
             .expect("Braton Prime");
         assert!(marked.favourite);
 
-        let rows = parts(&view);
+        let rows = parts(&fixture.view());
         let owned_parts: Vec<&PartRow> = rows
             .iter()
             .filter(|row| row.set.name == "Braton Prime")

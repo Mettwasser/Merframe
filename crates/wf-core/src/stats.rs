@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use serde::Serialize;
-use wf_inventory::Inventory;
 
+use crate::account::Account;
 use crate::catalog::Catalog;
 use crate::inventory_view::display_name;
 use crate::mastery::{self, MasteryOptions};
@@ -122,15 +122,11 @@ pub fn distinct_days(times: impl IntoIterator<Item = DateTime<Utc>>) -> usize {
     days.len()
 }
 
-pub(crate) fn summary(
-    inventory: &Inventory,
-    catalog: &Catalog,
-    series: &[StatPoint],
-) -> StatsSummary {
+pub(crate) fn summary(account: &Account, catalog: &Catalog, series: &[StatPoint]) -> StatsSummary {
     let (prime_owned, prime_total) =
-        mastery::prime_ownership(inventory, catalog, MasteryOptions::default());
+        mastery::prime_ownership(account, catalog, MasteryOptions::default());
     StatsSummary {
-        account_created: inventory.created.datetime(),
+        account_created: account.inventory.created.datetime(),
         snapshot_days: distinct_days(series.iter().map(|point| point.at)),
         prime_owned,
         prime_total,
@@ -313,13 +309,13 @@ mod tests {
 
     #[test]
     fn fixture_summary() {
-        let inventory = fixtures::inventory();
+        let account = Account::new(fixtures::inventory());
         let series = daily_series(&[
             point(at("2023-11-14T00:00:00Z")),
             point(at("2023-11-14T23:59:59Z")),
             point(at("2023-11-16T12:00:00Z")),
         ]);
-        let summary = summary(&inventory, &fixtures::mastery_catalog(), &series);
+        let summary = summary(&account, &fixtures::mastery_catalog(), &series);
         assert_eq!(summary.prime_owned, 24);
         assert_eq!(summary.prime_total, 65);
         assert!((summary.prime_percent - 36.0).abs() < f64::EPSILON);

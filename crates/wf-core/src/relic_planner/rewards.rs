@@ -1,10 +1,7 @@
-use std::collections::HashSet;
-
 use serde::Serialize;
 use wf_data::{Rarity, RelicReward};
-use wf_inventory::Inventory;
 
-use crate::catalog::{Catalog, Stock, display_name_from_path};
+use crate::catalog::{Catalog, display_name_from_path};
 use crate::favourites::Favourites;
 use crate::identity::market_slug;
 use crate::view::View;
@@ -30,43 +27,9 @@ pub struct RewardBreakdown {
     pub favourite: bool,
 }
 
-pub(super) struct MasteredItems<'a> {
-    owned: HashSet<&'a str>,
-    capped: HashSet<&'a str>,
-}
-
-impl<'a> MasteredItems<'a> {
-    pub(super) fn new(inventory: &'a Inventory, catalog: &'a Catalog) -> Self {
-        let affinity = inventory.affinity_index();
-        let capped = catalog
-            .items()
-            .filter(|item| {
-                affinity
-                    .get(item.unique_name.as_str())
-                    .copied()
-                    .unwrap_or_default()
-                    >= item.affinity_cap()
-            })
-            .map(|item| item.unique_name.as_str())
-            .collect();
-        Self {
-            owned: inventory.owned_item_types(),
-            capped,
-        }
-    }
-
-    pub(super) fn holds(&self, unique_name: &str) -> bool {
-        self.owned.contains(unique_name) || self.capped.contains(unique_name)
-    }
-}
-
-pub(super) fn reward_breakdown(
-    view: &View,
-    stock: &Stock,
-    mastered: &MasteredItems,
-    reward: &RelicReward,
-) -> RewardBreakdown {
+pub(super) fn reward_breakdown(view: &View, reward: &RelicReward) -> RewardBreakdown {
     let View {
+        account,
         catalog,
         items,
         prices,
@@ -77,6 +40,7 @@ pub(super) fn reward_breakdown(
         .component_for_reward(&reward.item_unique_name)
         .and_then(|(item, component)| Some((item, component, items.part(item, component)?)));
     let favourite = favourite_reward(catalog, favourites, &reward.item_unique_name);
+    let stock = &account.stock;
     let owned = stock.count(&reward.item_unique_name);
     let (name, image_name, ducats, ownership) = match component {
         Some((item, component, part)) => (
@@ -88,7 +52,7 @@ pub(super) fn reward_breakdown(
                 needed: component.item_count,
                 needed_for_set: stock.count(&component.unique_name)
                     < i64::from(component.item_count),
-                parent_owned: mastered.holds(&item.unique_name),
+                parent_owned: account.holds(item),
             },
         ),
         None => match catalog.item(&reward.item_unique_name) {
@@ -100,7 +64,7 @@ pub(super) fn reward_breakdown(
                     owned,
                     needed: 1,
                     needed_for_set: false,
-                    parent_owned: mastered.holds(&item.unique_name),
+                    parent_owned: account.holds(item),
                 },
             ),
             None => (

@@ -1,6 +1,5 @@
 use serde::Serialize;
 use wf_data::Refinement;
-use wf_inventory::Inventory;
 
 use crate::catalog::{Catalog, Stock, part_identity};
 
@@ -20,11 +19,10 @@ pub struct RelicSource {
 
 pub(crate) fn relics_for(
     part_unique_name: &str,
-    inventory: &Inventory,
+    stock: &Stock,
     catalog: &Catalog,
 ) -> Vec<RelicSource> {
     let key = part_identity(part_unique_name);
-    let stock = Stock::new(inventory);
     let mut sources: Vec<RelicSource> = catalog
         .relics()
         .filter_map(|relic| {
@@ -32,7 +30,7 @@ pub(crate) fn relics_for(
                 .rewards_for(Refinement::Intact)
                 .iter()
                 .find(|reward| part_identity(&reward.item_unique_name) == key)?;
-            let owned = owned_relic_count(&stock, relic);
+            let owned = owned_relic_count(stock, relic);
             Some(RelicSource {
                 relic: relic.name.clone(),
                 tier: relic.tier.clone(),
@@ -65,7 +63,7 @@ mod tests {
         let catalog = fixtures::catalog();
         let sources = relics_for(
             "/Lotus/Types/Recipes/WarframeRecipes/TrinityPrimeSystemsComponent",
-            &inventory,
+            &Stock::new(&inventory),
             &catalog,
         );
         assert_eq!(sources.len(), 1);

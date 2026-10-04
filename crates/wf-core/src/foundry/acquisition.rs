@@ -52,7 +52,7 @@ fn chance_of(row: &NodeDrop) -> f64 {
     }
 }
 
-pub(super) fn node_drops(catalog: &Catalog, stock: &Stock<'_>, drops: &[Drop]) -> Vec<NodeDrop> {
+pub(super) fn node_drops(catalog: &Catalog, stock: &Stock, drops: &[Drop]) -> Vec<NodeDrop> {
     let mut listed: HashSet<&str> = HashSet::new();
     let mut rows: Vec<NodeDrop> = Vec::new();
     for drop in drops {
@@ -96,7 +96,7 @@ pub(super) fn node_drops(catalog: &Catalog, stock: &Stock<'_>, drops: &[Drop]) -
 
 pub(super) fn component_drops(
     catalog: &Catalog,
-    stock: &Stock<'_>,
+    stock: &Stock,
     parent: &Item,
     component: &Component,
 ) -> Vec<NodeDrop> {
@@ -131,11 +131,7 @@ pub(super) fn node_market(
     Some(NodeMarket { slug, sell })
 }
 
-pub(super) fn owned_relics(
-    catalog: &Catalog,
-    stock: &Stock<'_>,
-    drops: &[Drop],
-) -> Vec<OwnedRelic> {
+pub(super) fn owned_relics(catalog: &Catalog, stock: &Stock, drops: &[Drop]) -> Vec<OwnedRelic> {
     let mut listed: HashSet<&str> = HashSet::new();
     let mut rows: Vec<OwnedRelic> = Vec::new();
     for drop in drops {
