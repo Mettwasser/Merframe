@@ -116,6 +116,8 @@ Merframe goes a bit further and takes this approach for all data: Your current i
 DE has so far tolerated memory reading, but they can not give a clear okay or recommendation for third-party tools.
 As with all user tools: Use at your own risk.
 
+Memory holds way more than the game shows to a user. Merframe strives to only display what a player could also work out by hand from what the game shows them. To put it in a concrete rule: If it can be done with pen and paper, Merframe may show it.
+
 ## On memory (Linux)
 
 Merframe reads the memory of the running game through `/proc/<pid>/mem` on Linux.
