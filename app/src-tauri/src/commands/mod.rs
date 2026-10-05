@@ -9,6 +9,7 @@ use crate::state::{AppState, AppStateCell, lock};
 
 pub mod analytics;
 pub mod app;
+pub mod ducanator;
 pub mod market;
 pub mod tabs;
 pub mod trades;

@@ -1,6 +1,7 @@
 mod analytics;
 mod auctions;
 pub mod commands;
+pub mod ducanator;
 pub mod envelope;
 pub mod error;
 mod focus;
@@ -20,6 +21,7 @@ use tauri::{Manager, Runtime, Url};
 use tracing::{error, warn};
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
+use crate::commands::ducanator::DucanatorCancellationNotifier;
 use crate::state::{AppState, AppStateCell};
 
 pub fn closes_app(label: &str) -> bool {
@@ -107,6 +109,7 @@ async fn publish_state(handle: tauri::AppHandle) {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn run() {
     let context = tauri::generate_context!();
     #[cfg(target_os = "linux")]
@@ -183,6 +186,8 @@ pub fn run() {
             commands::app::open_game_log_folder,
             commands::app::item_image,
             commands::app::prefetch_images,
+            commands::ducanator::start_sell_run,
+            commands::ducanator::stop_sell_run,
         ])
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) && closes_app(window.label()) {
@@ -201,6 +206,9 @@ pub fn run() {
                 "Overlay backend chosen"
             );
             app.manage(AppStateCell::new());
+            app.manage(DucanatorCancellationNotifier(Arc::new(
+                tokio::sync::Notify::new(),
+            )));
             tauri::async_runtime::spawn(publish_state(app.handle().clone()));
             Ok(())
         });

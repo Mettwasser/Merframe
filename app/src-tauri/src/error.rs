@@ -1,4 +1,24 @@
+use std::sync::PoisonError;
+
 use serde::Serialize;
+
+macro_rules! from_error {
+    ($ty:ty) => {
+        impl From<$ty> for CommandError {
+            fn from(value: $ty) -> Self {
+                Self::from(value.to_string())
+            }
+        }
+    };
+
+    ($ty:ty $(, $generic:ident)*) => {
+        impl< $($generic),* > From<$ty> for CommandError {
+            fn from(value: $ty) -> Self {
+                Self::from(value.to_string())
+            }
+        }
+    };
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
@@ -11,6 +31,9 @@ impl From<anyhow::Error> for CommandError {
         Self::from(format!("{error:#}"))
     }
 }
+
+from_error!(PoisonError<T>, T);
+from_error!(tauri_plugin_clipboard_manager::Error);
 
 impl From<String> for CommandError {
     fn from(message: String) -> Self {

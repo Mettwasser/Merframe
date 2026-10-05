@@ -66,6 +66,9 @@ pub enum Event {
         focused: bool,
     },
     GameMonitor(MonitorRect),
+    DucatKiosk {
+        visible: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,6 +119,7 @@ impl Event {
             Self::InventorySynced => "InventorySynced",
             Self::WindowFocus { .. } => "WindowFocus",
             Self::GameMonitor(_) => "GameMonitor",
+            Self::DucatKiosk { .. } => "DucatKiosk",
         }
     }
 }
@@ -283,6 +287,17 @@ fn purchase_dialog(message: &str) -> Option<Event> {
     None
 }
 
+fn parse_hudvis(message: &str, prefix: &str) -> Option<bool> {
+    match message
+        .strip_prefix(prefix)?
+        .strip_prefix(": DBG: HudVis ")?
+    {
+        "0" => Some(false),
+        "1" => Some(true),
+        _ => None,
+    }
+}
+
 pub fn classify(line: &LogLine) -> Option<Event> {
     let message = line.message.as_str();
 
@@ -314,10 +329,11 @@ pub fn classify(line: &LogLine) -> Option<Event> {
     if message.ends_with("OmegaRerollSelection.lua: Diorama setup") {
         return Some(Event::RivenRerollScreenLoaded);
     }
-    match message.strip_prefix("Trade.lua: DBG: HudVis ") {
-        Some("0") => return Some(Event::TradeScreen { visible: false }),
-        Some("1") => return Some(Event::TradeScreen { visible: true }),
-        _ => {}
+    if let Some(visible) = parse_hudvis(message, "Trade.lua") {
+        return Some(Event::TradeScreen { visible });
+    }
+    if let Some(visible) = parse_hudvis(message, "InventoryTest.lua") {
+        return Some(Event::DucatKiosk { visible });
     }
     if message.ends_with("Mission Succeeded") {
         return Some(Event::MissionSucceeded);
