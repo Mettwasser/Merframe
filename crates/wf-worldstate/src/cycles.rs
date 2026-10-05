@@ -5,6 +5,7 @@ use crate::syndicate::SyndicateMission;
 use crate::syndicate::expiry_for_tag;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Timer {
     pub name: &'static str,
     pub state: &'static str,

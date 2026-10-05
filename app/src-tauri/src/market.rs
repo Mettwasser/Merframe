@@ -9,6 +9,7 @@ use wf_market::{Auction, Item, Order, OrderType, UserStatus};
 use crate::state::{AppState, lock, read, write};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum MarketCategory {
     Parts,
@@ -42,6 +43,7 @@ impl MarketCategory {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Presence {
     pub status: Option<UserStatus>,
     pub auto: bool,
@@ -147,6 +149,7 @@ fn is_necramech_set(category: MarketCategory, name: &str) -> bool {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct OrderRow {
     pub id: String,
     pub order_type: OrderType,

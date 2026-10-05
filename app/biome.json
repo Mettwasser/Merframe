@@ -52,6 +52,13 @@
     }
   },
   "files": {
-    "includes": ["src/**", "*.json", "*.js", "*.ts", "*.mjs"]
+    "includes": [
+      "src/**",
+      "!src/types/generated",
+      "*.json",
+      "*.js",
+      "*.ts",
+      "*.mjs"
+    ]
   }
 }

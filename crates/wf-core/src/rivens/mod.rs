@@ -60,6 +60,7 @@ impl<'a> Grader<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct PendingRoll {
     pub name: Option<String>,
     pub rerolls: u32,
@@ -70,6 +71,7 @@ pub struct PendingRoll {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RivenRow {
     pub item_id: String,
     pub item_type: String,
@@ -95,6 +97,7 @@ pub struct RivenRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct VeiledRiven {
     pub riven_id: String,
     pub item_type: String,
@@ -109,6 +112,7 @@ pub struct VeiledRiven {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct VeiledGroup {
     pub challenge_id: String,
     pub challenge: String,
@@ -118,6 +122,7 @@ pub struct VeiledGroup {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RivensTab {
     pub veiled: Vec<VeiledGroup>,
     pub unveiled: Vec<RivenRow>,

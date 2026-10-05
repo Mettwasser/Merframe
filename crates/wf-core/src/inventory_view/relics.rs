@@ -2,7 +2,7 @@ use wf_data::Refinement;
 
 use crate::catalog::{
     REFINEMENTS, VaultStatus, display_name_from_path, projection_suffix,
-    refinement_from_unique_name, refinement_name,
+    refinement_from_unique_name,
 };
 use crate::identity::ItemKind;
 use crate::listings::PlacedOrders;
@@ -53,7 +53,7 @@ pub(crate) fn relics(view: &View) -> Vec<RelicRow> {
         listings,
     } = *view;
     let inventory = &account.inventory;
-    let mut rows: Vec<(Refinement, RelicRow)> = inventory
+    let mut rows: Vec<RelicRow> = inventory
         .relics()
         .filter(|(_, count)| *count > 0)
         .filter_map(|(unique_name, count)| {
@@ -73,33 +73,30 @@ pub(crate) fn relics(view: &View) -> Vec<RelicRow> {
                 .get(unique_name)
                 .filter(|record| matches!(record.kind, ItemKind::Relic { .. }));
             let market_slug = record.and_then(|record| record.market_slug.as_deref());
-            Some((
+            Some(RelicRow {
+                relic,
+                tier,
                 refinement,
-                RelicRow {
-                    relic,
-                    tier,
-                    refinement: refinement_name(refinement),
-                    image_name: record.and_then(|record| record.image_name.clone()),
-                    count,
-                    vault: record
-                        .and_then(|record| record.vault)
-                        .unwrap_or(VaultStatus::Unknown),
-                    plat: market_slug.and_then(|slug| prices.plat(slug)),
-                    favourite: favourites.contains(unique_name),
-                    orders: market_slug
-                        .map_or_else(PlacedOrders::default, |slug| listings.orders_for(slug)),
-                    unique_name: unique_name.to_owned(),
-                    market_slug: market_slug.unwrap_or_default().to_owned(),
-                },
-            ))
+                image_name: record.and_then(|record| record.image_name.clone()),
+                count,
+                vault: record
+                    .and_then(|record| record.vault)
+                    .unwrap_or(VaultStatus::Unknown),
+                plat: market_slug.and_then(|slug| prices.plat(slug)),
+                favourite: favourites.contains(unique_name),
+                orders: market_slug
+                    .map_or_else(PlacedOrders::default, |slug| listings.orders_for(slug)),
+                unique_name: unique_name.to_owned(),
+                market_slug: market_slug.unwrap_or_default().to_owned(),
+            })
         })
         .collect();
-    rows.sort_by(|(left_refinement, left), (right_refinement, right)| {
+    rows.sort_by(|left, right| {
         left.relic
             .cmp(&right.relic)
-            .then(left_refinement.cmp(right_refinement))
+            .then(left.refinement.cmp(&right.refinement))
     });
-    rows.into_iter().map(|(_, row)| row).collect()
+    rows
 }
 
 #[cfg(test)]
@@ -151,7 +148,7 @@ mod tests {
             .unwrap();
         assert_eq!(row.relic, "Lith G12");
         assert_eq!(row.tier, "Lith");
-        assert_eq!(row.refinement, "Intact");
+        assert_eq!(row.refinement, Refinement::Intact);
         assert_eq!(row.count, 25);
     }
 
@@ -160,22 +157,19 @@ mod tests {
         let fixture =
             Fixture::new(projection_catalog(), fixtures::inventory()).with_prices(prices());
         let rows = relics(&fixture.view());
-        let counted = |refinement: &str| {
+        let counted = |refinement: Refinement| {
             rows.iter()
                 .filter(|row| row.refinement == refinement)
                 .count()
         };
-        assert_eq!(counted("Intact"), 16);
-        assert_eq!(counted("Exceptional"), 3);
-        assert_eq!(counted("Flawless"), 2);
-        assert_eq!(counted("Radiant"), 4);
+        assert_eq!(counted(Refinement::Intact), 16);
+        assert_eq!(counted(Refinement::Exceptional), 3);
+        assert_eq!(counted(Refinement::Flawless), 2);
+        assert_eq!(counted(Refinement::Radiant), 4);
 
         let refined: Vec<&RelicRow> = rows.iter().filter(|row| row.relic == "Lith S18").collect();
-        let refinements: Vec<&str> = refined.iter().map(|row| row.refinement).collect();
-        assert_eq!(
-            refinements,
-            ["Intact", "Exceptional", "Flawless", "Radiant"]
-        );
+        let refinements: Vec<Refinement> = refined.iter().map(|row| row.refinement).collect();
+        assert_eq!(refinements, REFINEMENTS);
         let names: HashSet<&str> = refined.iter().map(|row| row.unique_name.as_str()).collect();
         assert_eq!(names.len(), refined.len());
     }
@@ -233,7 +227,7 @@ mod tests {
             .expect("known relic");
         assert_eq!(known.relic, "Axi A21");
         assert_eq!(known.tier, "Axi");
-        assert_eq!(known.refinement, "Intact");
+        assert_eq!(known.refinement, Refinement::Intact);
         assert_eq!(known.count, 3);
         assert_eq!(known.vault, VaultStatus::Available);
         assert_eq!(known.plat, Some(5.0));

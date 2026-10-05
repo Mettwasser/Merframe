@@ -9,6 +9,7 @@ use crate::foundry::{self, CraftNode, FoundryItem, is_blueprint};
 use crate::view::View;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum ResourceSource {
     Held,
@@ -16,6 +17,7 @@ pub enum ResourceSource {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum ResourceScope {
     Mastery,
@@ -24,6 +26,7 @@ pub enum ResourceScope {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ResourceQuery {
     pub source: ResourceSource,
     pub scope: ResourceScope,
@@ -33,6 +36,7 @@ pub struct ResourceQuery {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ResourceUse {
     pub unique_name: String,
     pub name: String,
@@ -44,6 +48,7 @@ pub struct ResourceUse {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ResourceRow {
     pub unique_name: String,
     pub name: String,
@@ -55,6 +60,7 @@ pub struct ResourceRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ShardHolder {
     pub item_id: String,
     pub name: String,
@@ -64,6 +70,7 @@ pub struct ShardHolder {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ShardRow {
     pub unique_name: String,
     pub name: String,
@@ -74,6 +81,7 @@ pub struct ShardRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ResourcesTab {
     pub resources: Vec<ResourceRow>,
     pub shards: Vec<ShardRow>,

@@ -1,13 +1,14 @@
 use serde::Serialize;
 use wf_data::{Refinement, Relic};
 
-use crate::catalog::{REFINEMENTS, refinement_name};
+use crate::catalog::REFINEMENTS;
 
 use super::RewardBreakdown;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RefinementValue {
-    pub refinement: &'static str,
+    pub refinement: Refinement,
     pub expected_plat: f64,
     pub expected_ducats: f64,
     pub wanted_chance: f64,
@@ -19,15 +20,17 @@ pub struct RefinementValue {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct PerTrace {
     pub value: f64,
-    pub refinement: &'static str,
+    pub refinement: Refinement,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Best {
     pub plat: f64,
-    pub refinement: &'static str,
+    pub refinement: Refinement,
     pub wanted_chance: f64,
     pub plat_per_trace: Option<PerTrace>,
     pub ducats_per_trace: Option<PerTrace>,
@@ -36,7 +39,7 @@ pub struct Best {
 pub(super) fn best_refinement(values: &[RefinementValue]) -> Best {
     let mut best = Best {
         plat: 0.0,
-        refinement: refinement_name(Refinement::Intact),
+        refinement: Refinement::Intact,
         wanted_chance: 0.0,
         plat_per_trace: None,
         ducats_per_trace: None,
@@ -61,7 +64,7 @@ pub(super) fn best_refinement(values: &[RefinementValue]) -> Best {
     best
 }
 
-fn raise(best: &mut Option<PerTrace>, value: Option<f64>, refinement: &'static str) {
+fn raise(best: &mut Option<PerTrace>, value: Option<f64>, refinement: Refinement) {
     if value > best.map(|best| best.value) {
         *best = value.map(|value| PerTrace { value, refinement });
     }
@@ -141,7 +144,7 @@ pub(super) fn refinement_values(
             .map(|(_, chance)| (1.0 - chance / 100.0).powi(squad_size as i32))
             .product();
         RefinementValue {
-            refinement: refinement_name(refinement),
+            refinement,
             expected_plat: expected_plat_shares.iter().sum(),
             expected_ducats,
             wanted_chance: (1.0 - missed) * 100.0,

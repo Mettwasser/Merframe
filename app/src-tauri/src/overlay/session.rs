@@ -30,6 +30,7 @@ pub struct Startup {
 static STARTUP: OnceLock<Startup> = OnceLock::new();
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct OverlaySupport {
     pub windows_possible: bool,
     pub detail: String,

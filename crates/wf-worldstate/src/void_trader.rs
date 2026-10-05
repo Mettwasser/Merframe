@@ -19,6 +19,7 @@ pub struct VoidTrader {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub enum BaroStatus {
     Away {
         arrives: DateTime<Utc>,

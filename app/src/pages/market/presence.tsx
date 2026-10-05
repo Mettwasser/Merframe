@@ -9,18 +9,18 @@ import {
 } from "@/components/ui/select";
 import { useListen } from "@/hooks/use-listen";
 import { api, events, logError, reportError } from "@/lib/bridge";
-import type { MarketPresence, MarketStatus } from "@/types";
+import type { Presence, UserStatus } from "@/types";
 
 const UNSET = "unset";
 
-const OPTIONS: { value: MarketStatus; label: string }[] = [
+const OPTIONS: { value: UserStatus; label: string }[] = [
   { value: "invisible", label: "Offline" },
   { value: "online", label: "Online" },
   { value: "ingame", label: "In game" },
 ];
 
 export function PresenceControl() {
-  const [presence, setPresence] = useState<MarketPresence>({
+  const [presence, setPresence] = useState<Presence>({
     status: null,
     auto: false,
     live: null,
@@ -37,9 +37,9 @@ export function PresenceControl() {
     load();
   }, []);
 
-  useListen<MarketPresence>(events.marketPresence, setPresence);
+  useListen<Presence>(events.marketPresence, setPresence);
 
-  const push = async (next: MarketPresence) => {
+  const push = async (next: Presence) => {
     setPresence(next);
     try {
       await api.marketSetPresence(next.status, next.auto);
@@ -65,7 +65,7 @@ export function PresenceControl() {
         onValueChange={(value) =>
           push({
             ...presence,
-            status: value === UNSET ? null : (value as MarketStatus),
+            status: value === UNSET ? null : (value as UserStatus),
           })
         }
       >

@@ -112,12 +112,14 @@ fn placement_of(settings: &Settings, kind: Kind) -> OverlayPlacement {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RewardTrigger {
     pub relic: Option<String>,
     pub rewards: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RecommendationTrigger {
     pub tier: Option<&'static str>,
     pub refinement: RecommendationRefinement,
@@ -125,6 +127,7 @@ pub struct RecommendationTrigger {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RivenTrigger {
     pub item_type: String,
     pub before: Option<RivenRow>,
@@ -132,6 +135,7 @@ pub struct RivenTrigger {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct NotificationTrigger {
     pub id: u64,
     pub title: String,
@@ -139,6 +143,7 @@ pub struct NotificationTrigger {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct OverlayState {
     pub seq: u64,
     pub opacity: u8,

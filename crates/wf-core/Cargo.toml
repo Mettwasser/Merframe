@@ -13,11 +13,15 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+ts-rs = { workspace = true, optional = true }
 wf-data = { workspace = true }
 wf-inventory = { workspace = true }
 wf-log = { workspace = true }
 wf-market = { workspace = true }
 wf-worldstate = { workspace = true }
+
+[features]
+bindings = ["dep:ts-rs", "wf-data/bindings", "wf-market/bindings", "wf-worldstate/bindings"]
 
 [lints]
 workspace = true

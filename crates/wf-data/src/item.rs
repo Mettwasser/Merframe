@@ -5,6 +5,7 @@ pub fn store_item_to_type(path: &str) -> String {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "PascalCase")]
 pub enum Rarity {
     Common,

@@ -16,6 +16,7 @@ use super::missing_parts;
 use super::rewards::{RewardOwnership, favourite_reward};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Ranked {
     pub store_item: String,
     pub unique_name: String,
@@ -32,6 +33,7 @@ pub struct Ranked {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RankedComponent {
     pub unique_name: String,
     pub name: String,
@@ -44,6 +46,7 @@ pub struct RankedComponent {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RewardScreen {
     pub ranked: Vec<Ranked>,
     pub account: Option<AccountBalance>,
@@ -64,6 +67,7 @@ impl RewardScreen {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct AccountBalance {
     pub plat: i64,
     pub ducats: i64,

@@ -12,6 +12,7 @@ pub struct RawManifestItem {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ManifestItem {
     pub item_type: String,
     pub ducats: Option<u32>,

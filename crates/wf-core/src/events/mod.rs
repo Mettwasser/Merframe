@@ -12,6 +12,7 @@ pub(crate) use engine::{Engine, inventory_events};
 use crate::trade::Trade;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct FissureInfo {
     pub node_id: String,
     pub node_name: Option<&'static str>,
@@ -28,6 +29,7 @@ pub struct FissureInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct InventorySummary {
     pub last_sync_oid: String,
     pub mr: u32,
@@ -60,6 +62,7 @@ pub struct ScannedTrade {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub enum CoreEvent {
     InventoryUpdated(InventorySummary),
     RelicRewardScreen {

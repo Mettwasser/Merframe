@@ -1,14 +1,2 @@
-export * from "@/types/analytics";
-export * from "@/types/events";
-export * from "@/types/foundry";
-export * from "@/types/inventory";
-export * from "@/types/market";
-export * from "@/types/mastery";
-export * from "@/types/overlays";
+export type * from "@/types/generated";
 export * from "@/types/preferences";
-export * from "@/types/relic-planner";
-export * from "@/types/rivens";
-export * from "@/types/settings";
-export * from "@/types/stats";
-export * from "@/types/status";
-export * from "@/types/world";

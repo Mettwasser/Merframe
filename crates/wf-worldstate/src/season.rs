@@ -28,6 +28,7 @@ pub struct SeasonInfo {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub enum ChallengeKind {
     Daily,
@@ -36,6 +37,7 @@ pub enum ChallengeKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct NightwaveChallenge {
     pub tag: String,
     pub name: String,
@@ -46,6 +48,7 @@ pub struct NightwaveChallenge {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct NightwaveSeason {
     pub season: u32,
     pub phase: u32,

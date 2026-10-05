@@ -11,12 +11,14 @@ use super::rewards::{RewardBreakdown, reward_breakdown};
 use super::{OwnedRefinement, owned_refinements};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct DropLocation {
     pub location: String,
     pub chance: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RelicMarket {
     pub slug: String,
     pub sell: Option<f64>,
@@ -24,6 +26,7 @@ pub struct RelicMarket {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Ownership {
     pub owned: i64,
     pub by_refinement: Vec<OwnedRefinement>,
@@ -33,12 +36,14 @@ pub struct Ownership {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct IntactToRadiant {
     pub plat: f64,
     pub ducats: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RelicPlan {
     pub relic: String,
     pub unique_name: String,
@@ -508,14 +513,17 @@ mod tests {
         assert_eq!(axi.tier, "Axi");
         assert_eq!(axi.ownership.owned, 22);
         assert_eq!(axi.ownership.by_refinement.len(), 2);
-        assert_eq!(axi.ownership.by_refinement[0].refinement, "Intact");
+        assert_eq!(
+            axi.ownership.by_refinement[0].refinement,
+            Refinement::Intact
+        );
         assert_eq!(axi.values.len(), 4);
 
         let intact = &axi.values[0];
-        assert_eq!(intact.refinement, "Intact");
+        assert_eq!(intact.refinement, Refinement::Intact);
         assert!((intact.expected_plat - 32.2965).abs() < 1e-9);
         let radiant = &axi.values[3];
-        assert_eq!(radiant.refinement, "Radiant");
+        assert_eq!(radiant.refinement, Refinement::Radiant);
         assert!((radiant.expected_plat - 28.5035).abs() < 1e-9);
         assert!((axi.best.plat - intact.expected_plat).abs() < f64::EPSILON);
     }
@@ -608,7 +616,7 @@ mod tests {
         }
         let best_per_trace = axi.best.plat_per_trace.unwrap();
         assert!((best_per_trace.value - 0.8).abs() < 1e-9);
-        assert_eq!(axi.best.refinement, "Radiant");
+        assert_eq!(axi.best.refinement, Refinement::Radiant);
 
         let mixed = plan(
             &Fixture::new(fixtures::catalog(), fixtures::inventory())
@@ -618,7 +626,7 @@ mod tests {
             1,
             true,
         );
-        assert_eq!(mixed[0].best.refinement, "Intact");
+        assert_eq!(mixed[0].best.refinement, Refinement::Intact);
         assert!(mixed[0].intact_to_radiant.plat < 0.0);
     }
 

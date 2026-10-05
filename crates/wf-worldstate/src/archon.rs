@@ -24,6 +24,7 @@ pub struct LiteSortie {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ArchonMission {
     pub mission_type: String,
     pub mission_name: String,
@@ -32,6 +33,7 @@ pub struct ArchonMission {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ArchonHunt {
     pub boss: String,
     pub boss_name: String,

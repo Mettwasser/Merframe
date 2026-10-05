@@ -14,8 +14,6 @@ import type {
   MarketAccount,
   MarketItem,
   MarketMover,
-  MarketPresence,
-  MarketStatus,
   MarketWindow,
   MasteryOrdering,
   MasteryTab,
@@ -24,6 +22,7 @@ import type {
   OrderPatch,
   OrderRow,
   OverlayState,
+  Presence,
   RelicPlannerTab,
   RelicSource,
   ResourceQuery,
@@ -35,6 +34,7 @@ import type {
   StatsTab,
   Trade,
   TradeAnalytics,
+  UserStatus,
   WorldStateView,
 } from "@/types";
 
@@ -168,9 +168,9 @@ export const api = {
     call<void>("market_close_order", { id, quantity }),
   marketDeleteOrder: (id: string) => call<Order>("market_delete_order", { id }),
   marketActivity: () => call<void>("market_activity"),
-  marketPresence: () => call<MarketPresence>("market_presence"),
-  marketSetPresence: (status: MarketStatus | null, auto: boolean) =>
-    call<MarketPresence>("market_set_presence", { status, auto }),
+  marketPresence: () => call<Presence>("market_presence"),
+  marketSetPresence: (status: UserStatus | null, auto: boolean) =>
+    call<Presence>("market_set_presence", { status, auto }),
   marketRemoveAll: () => call<number>("market_remove_all"),
   marketFixOrders: (id?: string) => call<number>("market_fix_orders", { id }),
   marketSetVisibility: (visible: boolean) =>

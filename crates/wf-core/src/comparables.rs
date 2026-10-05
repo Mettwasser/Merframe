@@ -46,12 +46,14 @@ fn abbreviation(slug: &str) -> Option<&'static str> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ComparedStat {
     pub slug: String,
     pub positive: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ComparableAttribute {
     pub name: String,
     pub abbr: Option<String>,
@@ -62,6 +64,7 @@ pub struct ComparableAttribute {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ComparableListing {
     pub id: String,
     pub price: u32,
@@ -76,6 +79,7 @@ pub struct ComparableListing {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RivenComparables {
     pub weapon_slug: String,
     pub updated_at: i64,

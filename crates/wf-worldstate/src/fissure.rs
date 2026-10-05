@@ -32,6 +32,7 @@ pub struct VoidStorm {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub enum RelicTier {
     Lith,
     Meso,
@@ -67,6 +68,7 @@ impl RelicTier {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(untagged)]
 pub enum FissureTier {
     Relic(RelicTier),
@@ -98,6 +100,7 @@ impl FissureTier {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Fissure {
     pub node_id: String,
     pub node_name: Option<&'static str>,

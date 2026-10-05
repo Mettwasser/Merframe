@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct CommandError {
     pub message: String,
 }

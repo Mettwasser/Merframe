@@ -13,6 +13,7 @@ pub(crate) use tab::{items, tab};
 pub(crate) use tree::{details, is_blueprint};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct PendingBuild {
     pub item_type: String,
     pub name: String,
@@ -23,6 +24,7 @@ pub struct PendingBuild {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum NodeDrop {
     Relic {
@@ -43,12 +45,14 @@ pub enum NodeDrop {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct NodeMarket {
     pub slug: String,
     pub sell: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct OwnedRelic {
     pub unique_name: String,
     pub name: String,
@@ -58,6 +62,7 @@ pub struct OwnedRelic {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct CraftNode {
     pub unique_name: String,
     pub name: String,
@@ -77,6 +82,7 @@ pub struct CraftNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct NeededItem {
     pub unique_name: String,
     pub name: String,
@@ -85,6 +91,7 @@ pub struct NeededItem {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct FoundryComponent {
     pub unique_name: String,
     pub name: String,
@@ -97,12 +104,14 @@ pub struct FoundryComponent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Prime {
     pub vault: VaultStatus,
     pub resurgence: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Progress {
     pub owned: bool,
     pub pending: bool,
@@ -110,18 +119,21 @@ pub struct Progress {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MasteryGate {
     pub required: Option<u32>,
     pub met: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Helminth {
     pub ability: String,
     pub subsumed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct FoundryItem {
     pub unique_name: String,
     pub name: String,
@@ -142,6 +154,7 @@ pub struct FoundryItem {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct WorldTimer {
     pub name: String,
     pub state: String,
@@ -150,12 +163,14 @@ pub struct WorldTimer {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct CraftDetails {
     pub tree: Vec<CraftNode>,
     pub summary: CraftSummary,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct CraftSummary {
     pub credits: i64,
     pub build_secs: i64,
@@ -165,6 +180,7 @@ pub struct CraftSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct FoundryTab {
     pub pending: Vec<PendingBuild>,
     pub items: Vec<FoundryItem>,

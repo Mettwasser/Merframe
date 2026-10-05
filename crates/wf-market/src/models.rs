@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum OrderType {
     Buy,
@@ -41,6 +42,7 @@ pub enum Rarity {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum Polarity {
     Madurai,
@@ -53,6 +55,7 @@ pub enum Polarity {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum UserStatus {
     Offline,
@@ -62,12 +65,14 @@ pub enum UserStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct User {
     pub id: String,
     #[serde(rename = "ingameName")]
     pub ingame_name: String,
     pub slug: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "bindings", ts(optional))]
     pub status: Option<UserStatus>,
     pub locale: String,
 }
@@ -148,6 +153,7 @@ pub struct RivenAttribute {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Order {
     pub id: String,
     #[serde(rename = "type")]
@@ -155,14 +161,19 @@ pub struct Order {
     pub platinum: u32,
     pub quantity: u32,
     #[serde(rename = "perTrade", skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "bindings", ts(optional))]
     pub per_trade: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "bindings", ts(optional))]
     pub subtype: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "bindings", ts(optional))]
     pub rank: Option<u32>,
     #[serde(rename = "amberStars", skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "bindings", ts(optional))]
     pub amber_stars: Option<u32>,
     #[serde(rename = "cyanStars", skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "bindings", ts(optional))]
     pub cyan_stars: Option<u32>,
     pub visible: bool,
     #[serde(rename = "updatedAt")]
@@ -253,6 +264,7 @@ pub struct Chat {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RivenAttributeInstance {
     pub value: f64,
     pub positive: bool,
@@ -260,6 +272,7 @@ pub struct RivenAttributeInstance {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct AuctionItem {
     pub attributes: Vec<RivenAttributeInstance>,
     pub polarity: Polarity,
@@ -271,6 +284,7 @@ pub struct AuctionItem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "mirrors the warframe.market auction object"
@@ -281,6 +295,7 @@ pub struct Auction {
     pub starting_price: u32,
     pub minimal_reputation: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "bindings", ts(optional))]
     pub note: Option<String>,
     pub item: AuctionItem,
     pub private: bool,

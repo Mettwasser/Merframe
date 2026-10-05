@@ -24,6 +24,7 @@ pub(super) fn unlisted_items() -> CommandError {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MarketItem {
     pub id: String,
     pub slug: String,
@@ -40,6 +41,7 @@ pub struct MarketItem {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export, optional_fields))]
 pub struct NewOrder {
     pub item_id: String,
     pub order_type: OrderType,
@@ -54,6 +56,7 @@ pub struct NewOrder {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export, optional_fields))]
 pub struct OrderPatch {
     pub platinum: Option<u32>,
     pub quantity: Option<u32>,

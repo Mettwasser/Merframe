@@ -1,9 +1,9 @@
 use serde::Serialize;
-use wf_data::Relic;
+use wf_data::{Refinement, Relic};
 use wf_inventory::Inventory;
 
 use crate::account::Account;
-use crate::catalog::{Catalog, REFINEMENTS, Stock, refinement_name};
+use crate::catalog::{Catalog, REFINEMENTS, Stock};
 use crate::mastery;
 
 mod expectation;
@@ -24,12 +24,14 @@ pub(crate) use sources::relics_for;
 pub const DEFAULT_SQUAD_SIZE: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct OwnedRefinement {
-    pub refinement: &'static str,
+    pub refinement: Refinement,
     pub count: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MissingPart {
     pub unique_name: String,
     pub mastery: bool,
@@ -58,10 +60,7 @@ fn owned_refinements(stock: &Stock, relic: &Relic) -> Vec<OwnedRefinement> {
             if count == 0 {
                 return None;
             }
-            Some(OwnedRefinement {
-                refinement: refinement_name(refinement),
-                count,
-            })
+            Some(OwnedRefinement { refinement, count })
         })
         .collect()
 }

@@ -8,6 +8,7 @@ use super::Grader;
 use super::grading::AttributeGrade;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct StatMatch {
     pub abbr: String,
     pub name: Option<String>,
@@ -15,6 +16,7 @@ pub struct StatMatch {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct AlternativeMatch {
     pub mandatory: Vec<StatMatch>,
     pub optional: Vec<StatMatch>,
@@ -23,6 +25,7 @@ pub struct AlternativeMatch {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct GoodRollView {
     pub alternatives: Vec<AlternativeMatch>,
     pub accepted_bad: Vec<StatMatch>,

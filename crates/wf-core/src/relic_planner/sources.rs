@@ -7,6 +7,7 @@ use super::owned_relic_count;
 use super::rewards::rarity_name;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RelicSource {
     pub relic: String,
     pub tier: String,

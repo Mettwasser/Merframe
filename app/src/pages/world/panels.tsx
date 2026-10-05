@@ -27,15 +27,16 @@ import {
 } from "@/lib/world";
 import type {
   ArchonHunt,
+  ArchonMission,
   BaroGroup,
   BaroStatus,
   ChallengeKind,
   Circuit,
   DarvoDeal,
-  Mission,
   NightwaveSeason,
   PrimeResurgence,
   Sortie,
+  SortieMission,
 } from "@/types";
 
 const CHALLENGE_GROUPS: { value: ChallengeKind; label: string }[] = [
@@ -143,31 +144,42 @@ function Boss({ name, faction }: { name: string; faction: string | null }) {
   );
 }
 
-function Missions({ missions }: { missions: Mission[] }) {
+function modifierName(mission: SortieMission | ArchonMission) {
+  return "modifier_name" in mission ? mission.modifier_name : null;
+}
+
+function Missions({
+  missions,
+}: {
+  missions: (SortieMission | ArchonMission)[];
+}) {
   return (
     <ol className="flex flex-col gap-1.5">
-      {missions.map((mission, index) => (
-        <li
-          key={`${mission.node_id}-${mission.mission_type}-${mission.modifier_name ?? ""}`}
-          className="flex flex-col text-sm"
-        >
-          <span>
-            <span className="text-muted-foreground mr-2 text-xs">
-              {index + 1}
+      {missions.map((mission, index) => {
+        const modifier = modifierName(mission);
+        return (
+          <li
+            key={`${mission.node_id}-${mission.mission_type}-${modifier ?? ""}`}
+            className="flex flex-col text-sm"
+          >
+            <span>
+              <span className="text-muted-foreground mr-2 text-xs">
+                {index + 1}
+              </span>
+              {mission.mission_name}
+              <span className="text-muted-foreground">
+                {" "}
+                ({nodeLabel(mission.node_name, mission.node_id)})
+              </span>
             </span>
-            {mission.mission_name}
-            <span className="text-muted-foreground">
-              {" "}
-              ({nodeLabel(mission.node_name, mission.node_id)})
-            </span>
-          </span>
-          {mission.modifier_name && (
-            <span className="text-muted-foreground pl-4 text-xs">
-              {mission.modifier_name}
-            </span>
-          )}
-        </li>
-      ))}
+            {modifier && (
+              <span className="text-muted-foreground pl-4 text-xs">
+                {modifier}
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ol>
   );
 }

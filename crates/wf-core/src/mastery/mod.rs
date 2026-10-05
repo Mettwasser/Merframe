@@ -11,6 +11,7 @@ pub(crate) use items::{includes_founders, kind_of, masterable, prime_ownership, 
 pub(crate) use tab::tab;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum MasteryOrdering {
     #[default]
@@ -37,6 +38,7 @@ impl Default for MasteryOptions {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum MasteryGroup {
     Warframes,
@@ -46,6 +48,7 @@ pub enum MasteryGroup {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MasteryComponent {
     pub unique_name: String,
     pub name: String,
@@ -56,6 +59,7 @@ pub struct MasteryComponent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Level {
     pub current: u32,
     pub max: u32,
@@ -63,6 +67,7 @@ pub struct Level {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Acquisition {
     pub missing_parts: usize,
     pub plat_cost: u64,
@@ -71,6 +76,7 @@ pub struct Acquisition {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MasteryItem {
     pub unique_name: String,
     pub name: String,
@@ -86,6 +92,7 @@ pub struct MasteryItem {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct CategoryTotals {
     pub current: u32,
     pub max: u32,
@@ -111,6 +118,7 @@ impl CategoryTotals {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MasterySummary {
     pub warframes: CategoryTotals,
     pub weapons: CategoryTotals,
@@ -127,6 +135,7 @@ pub struct MasterySummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RouteMember {
     pub name: String,
     pub detail: String,
@@ -134,6 +143,7 @@ pub struct RouteMember {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct LevelUpRoute {
     pub kind: &'static str,
     pub label: &'static str,
@@ -144,6 +154,7 @@ pub struct LevelUpRoute {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MasteryTab {
     pub rank: u32,
     pub founder: bool,

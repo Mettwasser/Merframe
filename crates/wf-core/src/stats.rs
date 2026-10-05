@@ -12,6 +12,7 @@ use crate::store::{RelicOpening, StatPoint, StoredDelta, TimeRange};
 pub(crate) const AYA_ITEM: &str = "/Lotus/Types/Items/MiscItems/SchismKey";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct DeltaRow {
     pub item_type: String,
     pub name: String,
@@ -20,6 +21,7 @@ pub struct DeltaRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct OpeningRow {
     pub id: i64,
     pub at: DateTime<Utc>,
@@ -54,12 +56,14 @@ pub(crate) fn opening_rows(catalog: &Catalog, openings: Vec<RelicOpening>) -> Ve
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct DailyCount {
     pub day: NaiveDate,
     pub count: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct StatsSummary {
     pub account_created: DateTime<Utc>,
     pub snapshot_days: usize,

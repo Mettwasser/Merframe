@@ -22,6 +22,7 @@ pub struct EndlessXpWeek {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Circuit {
     pub rotates: DateTime<Utc>,
     pub normal: Vec<String>,

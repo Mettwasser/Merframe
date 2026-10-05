@@ -36,6 +36,7 @@ const COMPAT_FIXUPS: [(&str, &str); 2] = [
 ];
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct AttributeGrade {
     pub tag: String,
     pub name: Option<String>,

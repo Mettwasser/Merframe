@@ -12,12 +12,14 @@ thiserror = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
 reqwest = { workspace = true, optional = true }
+ts-rs = { workspace = true, optional = true }
 
 [build-dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
 
 [features]
+bindings = ["dep:ts-rs"]
 fetch = ["dep:reqwest"]
 
 [lints]

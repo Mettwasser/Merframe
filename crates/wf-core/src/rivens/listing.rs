@@ -8,6 +8,7 @@ use super::RivenRow;
 use super::grading::display_value;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct ListingChoices {
     pub direct: bool,

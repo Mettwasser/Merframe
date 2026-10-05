@@ -32,6 +32,7 @@ use crate::trade::{Trade, player_name};
 use crate::view::View;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RelicPlannerTab {
     pub squad_size: u32,
     pub only_owned: bool,
@@ -41,6 +42,7 @@ pub struct RelicPlannerTab {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct StatsTab {
     pub series: Vec<StatPoint>,
     pub trades: Vec<StoredTrade>,

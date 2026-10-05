@@ -25,6 +25,7 @@ pub struct RawSortie {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct SortieMission {
     pub mission_type: String,
     pub mission_name: String,
@@ -35,6 +36,7 @@ pub struct SortieMission {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Sortie {
     pub boss: String,
     pub boss_name: String,

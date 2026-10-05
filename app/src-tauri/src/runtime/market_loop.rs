@@ -34,6 +34,7 @@ impl MarketRefresh {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MarketSnapshot {
     pub orders: Option<Vec<OrderRow>>,
     pub auctions: Option<Vec<Auction>>,
@@ -94,6 +95,7 @@ async fn market_snapshot(state: &Arc<AppState>, refresh: MarketRefresh) -> Marke
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum AutoCloseKind {
     Auction,
@@ -102,6 +104,7 @@ pub enum AutoCloseKind {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MarketAutoClose {
     pub item: String,
     pub quantity: u32,

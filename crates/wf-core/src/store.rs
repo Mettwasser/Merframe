@@ -21,6 +21,7 @@ use crate::trade::Trade;
 const MIGRATIONS: [(i64, &str); 1] = [(1, include_str!("sql/0001_init.sql"))];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct SnapshotId(pub i64);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -36,6 +37,7 @@ pub struct Snapshot {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct StatPoint {
     pub snapshot: SnapshotId,
     pub at: DateTime<Utc>,
@@ -81,6 +83,7 @@ pub struct StoredDelta {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct StoredTrade {
     pub id: i64,
     pub at: DateTime<Utc>,

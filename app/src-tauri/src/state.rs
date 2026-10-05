@@ -83,6 +83,7 @@ impl PriceSource for SharedPrices {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum InventorySource {
     #[default]
@@ -92,6 +93,7 @@ pub enum InventorySource {
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct GameStatus {
     pub game_detected: bool,
     pub pid: Option<u32>,

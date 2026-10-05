@@ -6,6 +6,7 @@ use wf_core::CoreEvent;
 static NEXT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct CoreEventEnvelope {
     pub id: String,
     pub event: CoreEvent,

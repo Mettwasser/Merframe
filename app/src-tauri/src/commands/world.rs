@@ -15,6 +15,7 @@ use crate::error::CommandResult;
 use crate::state::{lock, read};
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct WorldStateView {
     pub fissures: Vec<Fissure>,
     pub baro: Option<BaroStatus>,
@@ -31,6 +32,7 @@ pub struct WorldStateView {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct BaroOffer {
     pub name: String,
     pub ducats: Option<u32>,
@@ -39,12 +41,14 @@ pub struct BaroOffer {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct BaroGroup {
     pub name: &'static str,
     pub items: Vec<BaroOffer>,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct DarvoDeal {
     pub name: String,
     pub discount_percent: u32,
@@ -56,6 +60,7 @@ pub struct DarvoDeal {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MarketOffer {
     pub name: String,
     pub discount_percent: u32,
@@ -66,12 +71,14 @@ pub struct MarketOffer {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ResurgenceOffering {
     pub name: String,
     pub regal_aya: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct PrimeResurgence {
     pub node_id: String,
     pub node_name: Option<&'static str>,

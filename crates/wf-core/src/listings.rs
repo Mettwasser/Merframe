@@ -12,6 +12,7 @@ struct ListedRiven {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct PlacedOrders {
     pub sell: bool,
     pub buy: bool,

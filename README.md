@@ -82,6 +82,8 @@ pnpm tauri build --debug
 
 Running the app from cargo is not supported as that will not start the Vite server.
 
+When a Rust type sent to the front end changes, run `pnpm types` in `app/` to regenerate `app/src/types/generated/` and its `index.ts`; `pnpm types:check` fails when the committed files are stale. The generated files are committed, so `pnpm build` never needs cargo.
+
 Diagnostics: `RUST_LOG=merframe_lib=debug,wf_scan=debug pnpm tauri dev`.
 App data: `~/.local/share/Merframe/` on Linux, `%APPDATA%\Merframe\` on Windows.
 App data holds the SQLite store, the last inventory as `inventory.json.gz`, WFCD image/data cache, settings, and `merframe.log`.

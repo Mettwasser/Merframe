@@ -7,6 +7,7 @@ use crate::identity::market_slug;
 use crate::view::View;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RewardOwnership {
     pub owned: i64,
     pub needed: u32,
@@ -15,6 +16,7 @@ pub struct RewardOwnership {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RewardBreakdown {
     pub unique_name: String,
     pub name: String,

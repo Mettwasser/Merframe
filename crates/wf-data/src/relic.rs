@@ -6,6 +6,7 @@ use crate::error::{DataError, Result};
 use crate::item::{MarketSlug, Rarity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub enum Refinement {
     Intact,
     Exceptional,

@@ -22,7 +22,7 @@ import { dateTime, dayLabel, num, percent, spansYears } from "@/lib/format";
 import { usePageQuote } from "@/lib/quotes";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/stores/preferences-store";
-import type { DailyCount, RelicOpening, StatPoint, StoredDelta } from "@/types";
+import type { DailyCount, DeltaRow, OpeningRow, StatPoint } from "@/types";
 
 function fullDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -32,7 +32,7 @@ function fullDate(iso: string): string {
   });
 }
 
-const OPENING_COLUMNS: ColumnDef<RelicOpening>[] = [
+const OPENING_COLUMNS: ColumnDef<OpeningRow>[] = [
   {
     accessorKey: "at",
     header: "When",
@@ -48,7 +48,7 @@ const OPENING_COLUMNS: ColumnDef<RelicOpening>[] = [
   },
 ];
 
-const DELTA_COLUMNS: ColumnDef<StoredDelta>[] = [
+const DELTA_COLUMNS: ColumnDef<DeltaRow>[] = [
   { accessorKey: "name", header: "Item", enableHiding: false },
   { accessorKey: "category", header: "Category" },
   {

@@ -21,6 +21,7 @@ pub const OVERLAY_OPACITY_DEFAULT: u8 = 100;
 pub const RECOMMENDATION_COUNT_DEFAULT: u8 = 6;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub enum OverlayMode {
     #[default]
@@ -30,6 +31,7 @@ pub enum OverlayMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum OverlayPlacement {
     TopLeft,
@@ -55,6 +57,7 @@ impl From<ToastPosition> for OverlayPlacement {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum ToastPosition {
     TopLeft,
@@ -67,6 +70,7 @@ pub enum ToastPosition {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum RecommendationRefinement {
     #[default]
@@ -75,6 +79,7 @@ pub enum RecommendationRefinement {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct Settings {
     pub alerts: AlertSettings,
@@ -98,6 +103,7 @@ pub struct Settings {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum InGameToast {
     Inventory,
@@ -108,6 +114,7 @@ pub enum InGameToast {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct ToastSettings {
     pub toasts_enabled: bool,
@@ -118,6 +125,7 @@ pub struct ToastSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct NotificationSettings {
     pub windows_notifications_enabled: bool,
@@ -126,6 +134,7 @@ pub struct NotificationSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct DiscordSettings {
     pub discord_notifications_enabled: bool,
@@ -136,6 +145,7 @@ pub struct DiscordSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct MarketSettings {
     pub market_poll_minutes: u32,
@@ -149,6 +159,7 @@ pub struct MarketSettings {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct LastTradeSettings {
     pub market_offline_after_last_trade: bool,
@@ -157,6 +168,7 @@ pub struct LastTradeSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct InventorySettings {
     pub include_founders_items: Option<bool>,
@@ -167,6 +179,7 @@ pub struct InventorySettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct OverlaySettings {
     pub overlays_enabled: bool,
@@ -183,6 +196,7 @@ pub struct OverlaySettings {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct OverlayToggles {
     pub overlay_relic_reward: bool,
@@ -191,6 +205,7 @@ pub struct OverlayToggles {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct OverlayPlacements {
     pub overlay_relic_reward_placement: OverlayPlacement,
@@ -359,6 +374,7 @@ impl InventorySettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MarketAccount {
     pub ingame_name: String,
     pub slug: String,

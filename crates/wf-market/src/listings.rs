@@ -5,12 +5,14 @@ use serde::{Deserialize, Serialize};
 use crate::models::{Order, OrderType, UserStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ItemListings {
     pub sell: Vec<Order>,
     pub buy: Vec<Order>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum TraderStatus {
     #[default]

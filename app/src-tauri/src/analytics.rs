@@ -8,6 +8,7 @@ use crate::market::MarketItems;
 use crate::runtime::trade_side;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "lowercase")]
 pub enum TradeCategory {
     Set,
@@ -41,6 +42,7 @@ impl TradeCategory {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MarketMover {
     pub slug: String,
     pub name: String,
@@ -79,6 +81,7 @@ pub fn market_movers(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct CategoryStatement {
     pub category: TradeCategory,
     pub revenue: i64,
@@ -86,6 +89,7 @@ pub struct CategoryStatement {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct TradedTotal {
     pub name: String,
     pub image_name: Option<String>,
@@ -94,6 +98,7 @@ pub struct TradedTotal {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct TradeAnalytics {
     pub categories: Vec<CategoryStatement>,
     pub sold: Vec<TradedTotal>,

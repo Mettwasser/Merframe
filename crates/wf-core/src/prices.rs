@@ -17,6 +17,7 @@ pub trait PriceSource {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct Prices {
     pub sell: Option<f64>,
     pub buy: Option<f64>,
@@ -41,6 +42,7 @@ impl From<&PriceEntry> for PriceQuote {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub enum MarketWindow {
     #[serde(rename = "2")]
     TwoDays,

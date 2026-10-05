@@ -6,6 +6,7 @@ use wf_worldstate::{Fissure, RelicTier, mission_type_name};
 const ANY: &str = "all";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub enum FissureSubtype {
     #[default]
@@ -27,6 +28,7 @@ impl FissureSubtype {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct FissureFilter {
     pub tier: String,
@@ -73,6 +75,7 @@ fn matches_value(filter: &str, value: &str) -> bool {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum CyclePhase {
     EarthDay,
@@ -116,6 +119,7 @@ impl CyclePhase {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(transparent)]
 pub struct TimerAlerts(BTreeSet<CyclePhase>);
 
@@ -189,6 +193,7 @@ impl<'de> Deserialize<'de> for TimerAlerts {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(default)]
 pub struct AlertSettings {
     pub fissure_notifications_enabled: bool,

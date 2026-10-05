@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use serde::Serialize;
-use wf_data::{Rarity, catch_grade, misc_item_name};
+use wf_data::{Rarity, Refinement, catch_grade, misc_item_name};
 
 use crate::catalog::{Catalog, VaultStatus, display_name_from_path, part_name, refinement_name};
 use crate::identity::unlisted_upgrade;
@@ -20,12 +20,14 @@ pub(crate) use relics::relics;
 pub(crate) use upgrades::{UpgradeKind, arcanes, mods, upgrade_kind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ItemStatus {
     pub built: bool,
     pub mastered: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct PartSet {
     pub name: String,
     pub complete: bool,
@@ -33,6 +35,7 @@ pub struct PartSet {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct PartRow {
     pub name: String,
     pub unique_name: String,
@@ -49,6 +52,7 @@ pub struct PartRow {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct UpgradePrices {
     pub sell: Option<f64>,
     pub sell_max_rank: Option<f64>,
@@ -57,6 +61,7 @@ pub struct UpgradePrices {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ModHolder {
     pub item_id: String,
     pub name: String,
@@ -72,6 +77,7 @@ pub struct ModHolder {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct ModRow {
     pub name: String,
     pub unique_name: String,
@@ -89,10 +95,11 @@ pub struct ModRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RelicRow {
     pub relic: String,
     pub tier: String,
-    pub refinement: &'static str,
+    pub refinement: Refinement,
     pub image_name: Option<String>,
     pub count: i64,
     pub vault: VaultStatus,
@@ -104,6 +111,7 @@ pub struct RelicRow {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct SculptureStars {
     pub amber_filled: u32,
     pub cyan_filled: u32,
@@ -112,6 +120,7 @@ pub struct SculptureStars {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct MiscRow {
     pub name: String,
     pub unique_name: String,
@@ -127,6 +136,7 @@ pub struct MiscRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct SetComponent {
     pub unique_name: String,
     pub name: String,
@@ -138,6 +148,7 @@ pub struct SetComponent {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct SetRow {
     pub set_name: String,
     pub unique_name: String,
@@ -156,12 +167,14 @@ pub struct SetRow {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct TabTotals {
     pub ducats: i64,
     pub plat: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct InventoryTab {
     pub parts: Vec<PartRow>,
     pub mods: Vec<ModRow>,

@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "lint": "biome check --write .",
     "test": "vitest run",
+    "types": "node scripts/types.mjs",
+    "types:check": "pnpm types && git diff --exit-code src/types/generated",
     "tauri": "tauri"
   },
   "pnpm": {
