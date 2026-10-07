@@ -7,7 +7,7 @@ use anyhow::Context;
 use chrono::Utc;
 use futures_util::StreamExt;
 use futures_util::pin_mut;
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
 use tracing::{debug, info, warn};
 use wf_core::{CoreEvent, ScannedRewards, ScannedTrade, ScannedTradeItem};
 use wf_log::Event as LogEvent;
@@ -15,7 +15,6 @@ use wf_mem::{GAME_PROCESS, MemError, MemoryReader, open_game};
 use wf_scan::{HttpClients, InventoryBuffer, LuaState, TradeScreen};
 
 use super::{AppEvent, blocking, dispatch, emit, market_loop};
-use crate::commands::ducanator::DucanatorCancellationNotifier;
 use crate::overlay;
 use crate::state::{AppState, InventorySource, QueueSession, lock, read, write};
 
@@ -152,10 +151,6 @@ async fn handle_log_event<R: Runtime>(
 ) {
     if let LogEvent::WindowFocus { focused } = &event {
         state.focus.changed(*focused);
-    }
-    if let LogEvent::DucatKiosk { visible: false } = event {
-        let notifier = app.state::<DucanatorCancellationNotifier>();
-        notifier.0.notify_one();
     }
     overlay::on_log_event(app, state, &event, at);
     if matches!(

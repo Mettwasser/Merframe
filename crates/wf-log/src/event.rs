@@ -41,6 +41,10 @@ pub enum Event {
     TradeScreen {
         visible: bool,
     },
+    DucatKiosk {
+        visible: bool,
+    },
+    DucatSale,
     ConfirmDialog {
         buttons: DialogButtons,
     },
@@ -66,9 +70,6 @@ pub enum Event {
         focused: bool,
     },
     GameMonitor(MonitorRect),
-    DucatKiosk {
-        visible: bool,
-    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,6 +107,8 @@ impl Event {
             Self::MissionCleared => "MissionCleared",
             Self::SquadMissionPending { .. } => "SquadMissionPending",
             Self::TradeScreen { .. } => "TradeScreen",
+            Self::DucatKiosk { .. } => "DucatKiosk",
+            Self::DucatSale => "DucatSale",
             Self::ConfirmDialog { .. } => "ConfirmDialog",
             Self::DialogAnswered { .. } => "DialogAnswered",
             Self::ChatTabAdded { .. } => "ChatTabAdded",
@@ -119,7 +122,6 @@ impl Event {
             Self::InventorySynced => "InventorySynced",
             Self::WindowFocus { .. } => "WindowFocus",
             Self::GameMonitor(_) => "GameMonitor",
-            Self::DucatKiosk { .. } => "DucatKiosk",
         }
     }
 }
@@ -287,17 +289,6 @@ fn purchase_dialog(message: &str) -> Option<Event> {
     None
 }
 
-fn parse_hudvis(message: &str, prefix: &str) -> Option<bool> {
-    match message
-        .strip_prefix(prefix)?
-        .strip_prefix(": DBG: HudVis ")?
-    {
-        "0" => Some(false),
-        "1" => Some(true),
-        _ => None,
-    }
-}
-
 pub fn classify(line: &LogLine) -> Option<Event> {
     let message = line.message.as_str();
 
@@ -329,11 +320,19 @@ pub fn classify(line: &LogLine) -> Option<Event> {
     if message.ends_with("OmegaRerollSelection.lua: Diorama setup") {
         return Some(Event::RivenRerollScreenLoaded);
     }
-    if let Some(visible) = parse_hudvis(message, "Trade.lua") {
-        return Some(Event::TradeScreen { visible });
+    match message.strip_prefix("Trade.lua: DBG: HudVis ") {
+        Some("0") => return Some(Event::TradeScreen { visible: false }),
+        Some("1") => return Some(Event::TradeScreen { visible: true }),
+        _ => {}
     }
-    if let Some(visible) = parse_hudvis(message, "InventoryTest.lua") {
-        return Some(Event::DucatKiosk { visible });
+    if message == "InventoryTest.lua: InventoryTest - CurrMode: Selling Prime Parts" {
+        return Some(Event::DucatKiosk { visible: true });
+    }
+    if message == "InventoryTest.lua: OnSellCompleted(result=true, body={})" {
+        return Some(Event::DucatSale);
+    }
+    if message == "InventoryTest.lua: DBG: HudVis 0" {
+        return Some(Event::DucatKiosk { visible: false });
     }
     if message.ends_with("Mission Succeeded") {
         return Some(Event::MissionSucceeded);
@@ -563,6 +562,46 @@ mod tests {
         assert_eq!(
             classify(&log_line("Trade.lua: DBG: HudVis 0")),
             Some(Event::TradeScreen { visible: false })
+        );
+    }
+
+    #[test]
+    fn ducat_sale() {
+        assert_eq!(
+            classify(&log_line(
+                "InventoryTest.lua: OnSellCompleted(result=true, body={})"
+            )),
+            Some(Event::DucatSale)
+        );
+        assert_eq!(
+            classify(&log_line(
+                "InventoryTest.lua: OnSellCompleted(result=false, body={})"
+            )),
+            None
+        );
+    }
+
+    #[test]
+    fn ducat_kiosk_visibility() {
+        assert_eq!(
+            classify(&log_line(
+                "InventoryTest.lua: InventoryTest - CurrMode: Selling Prime Parts"
+            )),
+            Some(Event::DucatKiosk { visible: true })
+        );
+        assert_eq!(
+            classify(&log_line("InventoryTest.lua: DBG: HudVis 0")),
+            Some(Event::DucatKiosk { visible: false })
+        );
+        assert_eq!(
+            classify(&log_line(
+                "InventoryTest.lua: InventoryTest - CurrMode: Inventory"
+            )),
+            None
+        );
+        assert_eq!(
+            classify(&log_line("InventoryTest.lua: DBG: HudVis 1")),
+            None
         );
     }
 

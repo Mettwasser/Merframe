@@ -2,7 +2,6 @@ mod account;
 mod catalog;
 mod comparables;
 mod delta;
-pub mod ducanator;
 mod error;
 mod events;
 mod export;
