@@ -62,7 +62,8 @@ pub struct ScannedTrade {
     pub received: Vec<ScannedTradeItem>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, strum::EnumDiscriminants)]
+#[strum_discriminants(derive(strum::Display), strum(serialize_all = "snake_case"))]
 #[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub enum CoreEvent {
     InventoryUpdated(InventorySummary),

@@ -1,0 +1,18 @@
+[package]
+name = "wf-plugins"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+mlua.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+wf-core.workspace = true
+tokio.workspace = true
+strum.workspace = true
+
+[lints]
+workspace = true

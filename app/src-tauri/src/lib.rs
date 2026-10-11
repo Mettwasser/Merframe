@@ -9,6 +9,7 @@ pub mod market;
 mod market_session;
 pub mod notice;
 pub mod overlay;
+pub mod plugin_manager;
 pub mod runtime;
 pub mod settings;
 pub mod state;

@@ -21,6 +21,7 @@ use crate::focus::GameFocus;
 use crate::images::ImageCache;
 use crate::market::{Listings, MarketItems, Presence};
 use crate::overlay::{OverlaySupport, Overlays};
+use crate::plugin_manager::PluginManager;
 use crate::settings::{self, MarketAccount, Settings};
 
 pub const DATA_DIR: &str = "Merframe";
@@ -165,6 +166,7 @@ pub struct AppState {
     pub http: reqwest::Client,
     pub data_dir: PathBuf,
     pub images: ImageCache,
+    pub plugin_manager: PluginManager,
 }
 
 fn anonymous_client(http: &reqwest::Client) -> Client {
@@ -228,6 +230,11 @@ impl AppState {
             ..GameStatus::default()
         };
 
+        let plugins_dir = app.path().app_data_dir()?.join("plugins");
+        std::fs::create_dir_all(&plugins_dir)?;
+
+        let plugin_manager = PluginManager::new_with_spawned_dispatcher(&plugins_dir)?;
+
         Ok(Self {
             core: Mutex::new(core),
             market: RwLock::new(Arc::new(market)),
@@ -252,6 +259,7 @@ impl AppState {
             prices_wake: Notify::new(),
             overlays: Overlays::default(),
             auctions: AuctionCache::default(),
+            plugin_manager,
             http,
             data_dir,
             images,

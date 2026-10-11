@@ -120,6 +120,9 @@ pub async fn dispatch<R: Runtime>(
 ) {
     for event in events {
         debug!(event = event.label(), "Core event");
+
+        state.plugin_manager.dispatcher_tx.send(event.clone()).ok();
+
         emit(
             app,
             AppEvent::CoreEvent(CoreEventEnvelope::wrap(event.clone())),
