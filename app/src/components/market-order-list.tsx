@@ -43,7 +43,7 @@ function whisper(item: MarketItem, order: Order, wanted: OrderType) {
   const bundle = perTrade(order) > 1 ? ` x${perTrade(order)}` : "";
   const player = order.user?.ingameName ?? "";
   const verb = wanted === "buy" ? "buy" : "sell";
-  return `/w ${player} Hi! I want to ${verb}:${bundle} "${whisperName(item, order)}" for ${order.platinum} platinum. (warframe.market)`;
+  return `/w ${player} Hi! I want to ${verb}:${bundle} "${whisperName(item, order)}" for ${order.platinum} platinum. (warframe.market through Merframe)`;
 }
 
 export function OrderList({
