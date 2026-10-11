@@ -146,20 +146,13 @@ pub(crate) fn misc(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
     rows
 }
 
-fn record_row(
-    view: &View,
-    index: &mut ItemIndex,
-    unique_name: &str,
-    record: &ItemRecord,
-    count: i64,
-) -> MiscRow {
+fn record_row(view: &View, index: &mut ItemIndex, record: &ItemRecord, count: i64) -> MiscRow {
     MiscRow {
         item: index.add_marked(
-            ItemSummary::new(unique_name, record),
-            view.favourites.contains(unique_name),
+            ItemSummary::from(record),
+            view.favourites.contains(&record.unique_name),
         ),
         count,
-        ducats: None,
         plat: record
             .market_slug
             .as_deref()
@@ -192,15 +185,11 @@ fn counted_rows(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
         .into_iter()
         .filter(|(_, count)| *count > 0)
         .map(|((unique_name, stars), count)| MiscRow {
-            ducats: catalog
-                .component(unique_name)
-                .and_then(|(_, component)| component.ducats),
             market_subtype: catch_size(unique_name),
             stars,
             ..record_row(
                 view,
                 index,
-                unique_name,
                 &view.items.resolve(catalog, unique_name),
                 count,
             )
@@ -230,7 +219,6 @@ fn cosmetic_rows(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
             record_row(
                 view,
                 index,
-                unique_name,
                 &view.items.resolve(catalog, unique_name),
                 count,
             )
@@ -249,7 +237,7 @@ fn pet_print_rows(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
         .into_iter()
         .filter_map(|(unique_name, count)| {
             let imprint = view.items.variant(unique_name, Variant::Imprint)?;
-            Some(record_row(view, index, unique_name, imprint, count))
+            Some(record_row(view, index, imprint, count))
         })
         .collect()
 }
@@ -265,7 +253,7 @@ fn spare_equipment_rows(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
         .into_iter()
         .filter_map(|(unique_name, count)| {
             let record = view.items.get(unique_name)?;
-            Some(record_row(view, index, unique_name, record, count))
+            Some(record_row(view, index, record, count))
         })
         .collect()
 }

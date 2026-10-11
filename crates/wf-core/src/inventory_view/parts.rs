@@ -4,7 +4,7 @@ use wf_data::{Component, Item};
 
 use super::misc::is_landing_craft_part;
 use super::{ItemIndex, ItemStatus, ItemSummary, PartRow, SetComponent, SetLink, SetRow};
-use crate::catalog::{Catalog, Stock, is_prime};
+use crate::catalog::{Stock, is_prime};
 use crate::identity::{ItemRecord, ItemTable, Variant};
 use crate::prices::Prices;
 use crate::view::View;
@@ -74,7 +74,7 @@ pub(crate) fn parts(view: &View, index: &mut ItemIndex) -> Vec<PartRow> {
             if count <= 0 {
                 return None;
             }
-            let part = items.part(item, component)?;
+            let part = items.resolve(catalog, unique_name);
             let set = items.variant(&item.unique_name, Variant::Set)?;
             let slug = part.market_slug.as_deref();
             let favourite = favourites.any([
@@ -83,15 +83,14 @@ pub(crate) fn parts(view: &View, index: &mut ItemIndex) -> Vec<PartRow> {
                 item.unique_name.as_str(),
             ]);
             Some(PartRow {
-                item: index.add_marked(ItemSummary::new(unique_name, part), favourite),
+                item: index.add_marked(ItemSummary::from(&*part), favourite),
                 count,
                 prices: Prices {
                     sell: slug.and_then(|slug| prices.plat(slug)),
                     buy: slug.and_then(|slug| prices.buy_plat(slug)),
-                    ducats: component.ducats,
                 },
                 set: SetLink {
-                    item: index.add(ItemSummary::new(&item.unique_name, set)),
+                    item: index.add(ItemSummary::from(set)),
                     complete: set_is_complete(&account.stock, item),
                 },
                 status: ItemStatus {
@@ -120,7 +119,6 @@ fn set_is_complete(stock: &Stock, item: &Item) -> bool {
 }
 
 pub(crate) struct HeldPart<'a> {
-    component: &'a Component,
     record: &'a ItemRecord,
     owned: i64,
     required: i64,
@@ -140,7 +138,6 @@ pub(crate) fn held_parts<'a>(
     set_parts(item)
         .filter_map(|component| {
             Some(HeldPart {
-                component,
                 record: items.part(item, component)?,
                 owned: stock.count(&component.unique_name),
                 required: i64::from(component.item_count),
@@ -160,13 +157,11 @@ pub(crate) fn complete_sets(parts: &[HeldPart]) -> i64 {
         .unwrap_or(0)
 }
 
-fn set_ducats(catalog: &Catalog, parts: &[HeldPart]) -> u32 {
+fn set_ducats(parts: &[HeldPart]) -> u32 {
     parts
         .iter()
         .filter_map(|part| {
-            let ducats = catalog
-                .component(&part.component.unique_name)
-                .and_then(|(_, component)| component.ducats)?;
+            let ducats = part.record.ducats()?;
             u32::try_from(part.required)
                 .ok()
                 .map(|required| ducats * required)
@@ -200,7 +195,7 @@ pub(crate) fn sets(view: &View, index: &mut ItemIndex) -> Vec<SetRow> {
             let slug = set.market_slug.as_deref();
             Some(SetRow {
                 item: index.add_marked(
-                    ItemSummary::new(&item.unique_name, set),
+                    ItemSummary::from(set),
                     favourites.contains(&item.unique_name),
                 ),
                 owned_parts,
@@ -214,12 +209,12 @@ pub(crate) fn sets(view: &View, index: &mut ItemIndex) -> Vec<SetRow> {
                 prices: Prices {
                     sell: slug.and_then(|slug| prices.plat(slug)),
                     buy: slug.and_then(|slug| prices.buy_plat(slug)),
-                    ducats: Some(set_ducats(catalog, &parts)),
                 },
+                ducats: set_ducats(&parts),
                 components: parts
                     .iter()
                     .map(|part| SetComponent {
-                        item: index.add(ItemSummary::new(&part.component.unique_name, part.record)),
+                        item: index.add(ItemSummary::from(part.record)),
                         owned: part.owned,
                         required: part.required,
                         enough: part.enough(),
@@ -237,7 +232,7 @@ mod tests {
     use super::super::tests::prices;
     use super::*;
     use crate::account::Account;
-    use crate::catalog::fixtures;
+    use crate::catalog::{Catalog, fixtures};
     use crate::inventory_view::tab;
     use crate::listings::MarketListings;
     use crate::view::Fixture;
@@ -489,7 +484,7 @@ mod tests {
         )
         .with_prices(prices());
         let (rows, _) = stocked.rows(sets);
-        assert_eq!(rows[0].prices.ducats, Some(110));
+        assert_eq!(rows[0].ducats, 110);
     }
 
     #[test]

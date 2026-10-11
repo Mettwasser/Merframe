@@ -30,17 +30,19 @@ pub struct ItemSummary {
     pub market_slug: Option<String>,
     pub prime: bool,
     pub vault: Option<VaultStatus>,
+    pub ducats: Option<u32>,
 }
 
-impl ItemSummary {
-    pub fn new(unique_name: &str, record: &ItemRecord) -> Self {
+impl From<&ItemRecord> for ItemSummary {
+    fn from(record: &ItemRecord) -> Self {
         Self {
-            unique_name: unique_name.to_owned(),
+            unique_name: record.unique_name.clone(),
             name: record.name.clone(),
             image_name: record.image_name.clone(),
             market_slug: record.market_slug.clone(),
             prime: record.prime,
             vault: record.vault,
+            ducats: record.ducats(),
         }
     }
 }
@@ -174,7 +176,6 @@ pub struct SculptureStars {
 pub struct MiscRow {
     pub item: usize,
     pub count: i64,
-    pub ducats: Option<u32>,
     pub plat: Option<f64>,
     pub market_subtype: Option<String>,
     pub stars: Option<SculptureStars>,
@@ -199,6 +200,7 @@ pub struct SetRow {
     pub complete: bool,
     pub status: ItemStatus,
     pub prices: Prices,
+    pub ducats: u32,
     pub components: Vec<SetComponent>,
 }
 
@@ -313,11 +315,11 @@ mod tests {
             .get("/Lotus/Types/Recipes/Weapons/WeaponParts/BratonPrimeBarrel")
             .unwrap();
         let mut index = ItemIndex::default();
-        let first = index.add(ItemSummary::new(&barrel.unique_name, barrel));
-        let again = index.add(ItemSummary::new(&barrel.unique_name, barrel));
+        let first = index.add(ItemSummary::from(barrel));
+        let again = index.add(ItemSummary::from(barrel));
         let renamed = index.add(ItemSummary {
             name: "Braton Prime Barrel Listing".to_owned(),
-            ..ItemSummary::new(&barrel.unique_name, barrel)
+            ..ItemSummary::from(barrel)
         });
         assert_eq!(first, again);
         assert_ne!(first, renamed);
