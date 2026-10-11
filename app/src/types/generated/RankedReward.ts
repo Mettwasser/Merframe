@@ -3,4 +3,4 @@ import type { ItemSummary } from "./ItemSummary";
 import type { RankedComponent } from "./RankedComponent";
 import type { RewardOwnership } from "./RewardOwnership";
 
-export type Ranked = { item: ItemSummary, plat: number | null, set_plat: number | null, ownership: RewardOwnership | null, favourite: boolean, best: boolean, components: Array<RankedComponent>, };
+export type RankedReward = { item: ItemSummary, plat: number | null, set_plat: number | null, ownership: RewardOwnership | null, favourite: boolean, best: boolean, components: Array<RankedComponent>, };

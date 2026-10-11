@@ -54,8 +54,8 @@ pub use mastery::{
 pub use prices::{MarketWindow, PriceCache, PriceQuote, PriceSource, Prices, Turnover};
 pub use relic_planner::{
     AccountBalance, Best, DEFAULT_SQUAD_SIZE, DropLocation, IntactToRadiant, MissingPart,
-    OwnedRefinement, Ownership, PerTrace, Ranked, RankedComponent, RefinementValue, RelicMarket,
-    RelicPlan, RelicSource, RewardBreakdown, RewardOwnership, RewardScreen,
+    OwnedRefinement, Ownership, PerTrace, RankedComponent, RankedReward, RefinementValue,
+    RelicMarket, RelicPlan, RelicSource, RewardBreakdown, RewardOwnership, RewardScreen,
 };
 pub use resources::{
     ResourceQuery, ResourceRow, ResourceScope, ResourceSource, ResourceUse, ResourcesTab,

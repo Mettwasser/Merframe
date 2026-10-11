@@ -15,7 +15,7 @@ use super::rewards::{RewardOwnership, favourite_reward};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
-pub struct Ranked {
+pub struct RankedReward {
     pub item: ItemSummary,
     pub plat: Option<f64>,
     pub set_plat: Option<f64>,
@@ -39,7 +39,7 @@ pub struct RankedComponent {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 pub struct RewardScreen {
-    pub ranked: Vec<Ranked>,
+    pub ranked: Vec<RankedReward>,
     pub account: Option<AccountBalance>,
 }
 
@@ -107,7 +107,7 @@ impl<'a> Holdings<'a> {
     }
 }
 
-fn mark_best(ranked: &mut [Ranked]) {
+fn mark_best(ranked: &mut [RankedReward]) {
     let highest = ranked
         .iter()
         .filter_map(|entry| entry.plat)
@@ -130,12 +130,12 @@ pub(crate) fn recommend(
     rewards: &[ItemSummary],
 ) -> RewardScreen {
     let holdings = account.map(|account| Holdings::new(account, catalog));
-    let mut ranked: Vec<Ranked> = rewards
+    let mut ranked: Vec<RankedReward> = rewards
         .iter()
         .map(|reward| {
             let unique_name = reward.unique_name.as_str();
             let parent = catalog.component_for_reward(unique_name);
-            Ranked {
+            RankedReward {
                 item: reward.clone(),
                 plat: reward
                     .market_slug

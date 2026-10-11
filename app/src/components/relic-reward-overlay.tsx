@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { num } from "@/lib/format";
 import { occurrenceKeys } from "@/lib/keys";
 import { cn } from "@/lib/utils";
-import type { Ranked, RankedComponent, RewardScreen } from "@/types";
+import type { RankedComponent, RankedReward, RewardScreen } from "@/types";
 
 function Platinum({
   amount,
@@ -88,7 +88,13 @@ function RewardComponentTile({ component }: { component: RankedComponent }) {
   );
 }
 
-function RewardTile({ reward, compact }: { reward: Ranked; compact: boolean }) {
+function RewardTile({
+  reward,
+  compact,
+}: {
+  reward: RankedReward;
+  compact: boolean;
+}) {
   const keys = occurrenceKeys(
     reward.components.map((component) => component.item.unique_name),
   );
