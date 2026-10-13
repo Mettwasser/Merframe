@@ -3,7 +3,7 @@ use wf_data::Refinement;
 
 use crate::catalog::{Catalog, part_name, refinement_name};
 use crate::events::{ScannedTrade, ScannedTradeItem};
-use crate::identity::catalogued_name;
+use crate::identity::ItemTable;
 use crate::rivens::traded_riven_name;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,10 +29,10 @@ struct Level {
 }
 
 impl Trade {
-    pub(crate) fn from_screen(screen: &ScannedTrade, catalog: &Catalog) -> Self {
+    pub(crate) fn from_screen(screen: &ScannedTrade, catalog: &Catalog, items: &ItemTable) -> Self {
         let mut trade = Self::default();
-        for (items, receiving) in [(&screen.offered, false), (&screen.received, true)] {
-            for item in items {
+        for (scanned, receiving) in [(&screen.offered, false), (&screen.received, true)] {
+            for item in scanned {
                 let Some(item_type) = item.item_type.as_deref() else {
                     trade.plat += if receiving { item.count } else { -item.count };
                     continue;
@@ -42,7 +42,7 @@ impl Trade {
                 } else {
                     &mut trade.offered
                 };
-                add_item(side, TradeItem::traded(catalog, item, item_type));
+                add_item(side, TradeItem::traded(catalog, items, item, item_type));
             }
         }
         trade
@@ -50,7 +50,12 @@ impl Trade {
 }
 
 impl TradeItem {
-    fn traded(catalog: &Catalog, item: &ScannedTradeItem, item_type: &str) -> Self {
+    fn traded(
+        catalog: &Catalog,
+        items: &ItemTable,
+        item: &ScannedTradeItem,
+        item_type: &str,
+    ) -> Self {
         let fingerprint = item.fingerprint.as_deref();
         let name = match catalog.relic_by_unique_name(item_type) {
             Some((relic, Refinement::Intact)) => format!("{} Relic", relic.name),
@@ -61,7 +66,7 @@ impl TradeItem {
             ),
             None => fingerprint
                 .and_then(|fingerprint| traded_riven_name(catalog, item_type, fingerprint))
-                .or_else(|| catalogued_name(catalog, item_type))
+                .or_else(|| items.known_name(item_type))
                 .unwrap_or_else(|| {
                     item.name
                         .strip_suffix(" Defiled")
@@ -213,7 +218,8 @@ mod tests {
                 ),
             ],
         };
-        let trade = Trade::from_screen(&screen, &fixtures::upgrade_catalog());
+        let catalog = fixtures::upgrade_catalog();
+        let trade = Trade::from_screen(&screen, &catalog, &ItemTable::build(&catalog));
         assert_eq!(trade.plat, -84);
         assert_eq!(
             trade.offered,

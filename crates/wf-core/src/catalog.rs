@@ -247,13 +247,6 @@ pub(crate) fn refinement_name(refinement: Refinement) -> &'static str {
     }
 }
 
-pub(crate) fn item_name(catalog: &Catalog, unique_name: &str) -> String {
-    match catalog.item(unique_name) {
-        Some(item) => item.name.clone(),
-        None => display_name_from_path(unique_name),
-    }
-}
-
 pub(crate) fn display_name_from_path(path: &str) -> String {
     let tail = path.rsplit_once('/').map_or(path, |(_, tail)| tail);
     let mut out = String::with_capacity(tail.len() + 8);
@@ -521,7 +514,6 @@ mod tests {
         let forma = "/Lotus/Types/Items/MiscItems/Forma";
         assert!(catalog.component(forma).is_some());
         assert!(catalog.component_for_reward(forma).is_none());
-        assert_eq!(item_name(&catalog, forma), "Forma");
         assert_eq!(catalog.icon_for(forma).as_deref(), Some("forma.png"));
     }
 

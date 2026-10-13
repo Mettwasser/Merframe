@@ -18,7 +18,7 @@ pub async fn market_movers(
         .ok_or_else(unlisted_items)?;
     let turnover = state.prices.turnover(window);
     let core = lock(&state.core);
-    Ok(analytics::market_movers(&items, core.catalog(), &turnover))
+    Ok(analytics::market_movers(&items, core.items(), &turnover))
 }
 
 #[tauri::command]

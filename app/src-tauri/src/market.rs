@@ -4,10 +4,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use chrono::{DateTime, Duration, Utc};
 use indexmap::IndexSet;
 use serde::Serialize;
-use wf_core::{
-    Catalog, Core, ItemRecord, ItemSummary, ItemTable, MarketListings, PriceSource, market_icon,
-    market_name,
-};
+use wf_core::{Core, ItemRecord, ItemSummary, ItemTable, MarketListings, PriceSource, market_name};
 use wf_market::{Auction, Item, Order, OrderType, UserStatus};
 
 use crate::state::{AppState, lock, read, write};
@@ -203,10 +200,9 @@ impl MarketSnapshot {
     }
 }
 
-pub fn order_summary(item: &Item, record: &ItemRecord, catalog: &Catalog) -> ItemSummary {
+pub fn order_summary(item: &Item, record: &ItemRecord) -> ItemSummary {
     ItemSummary {
         name: market_name(item).to_owned(),
-        image_name: market_icon(catalog, item),
         market_slug: Some(item.slug.clone()),
         ..ItemSummary::from(record)
     }
@@ -321,9 +317,7 @@ pub async fn order_rows(state: &Arc<AppState>, orders: &[Order]) -> Option<Marke
             let item = items.get(&order.item_id)?;
             let record = core.items().by_market_id(&order.item_id)?;
             Some(OrderRow {
-                item: index
-                    .insert_full(order_summary(item, record, core.catalog()))
-                    .0,
+                item: index.insert_full(order_summary(item, record)).0,
                 ..order_row(
                     order,
                     item,
@@ -348,7 +342,7 @@ mod tests {
 
     use chrono::{DateTime, Utc};
     use serde_json::{Value, json};
-    use wf_core::{AlertSettings, Core, PriceCache, PriceSource, Store};
+    use wf_core::{AlertSettings, Catalog, Core, PriceCache, PriceSource, Store};
     use wf_market::{Item, ItemLocalization, Order, OrderType};
 
     use super::*;
@@ -595,11 +589,7 @@ mod tests {
 
         fn summary(&self, slug: &str) -> ItemSummary {
             let item = self.items.get(&format!("id-{slug}")).unwrap();
-            order_summary(
-                item,
-                self.core.items().by_market_id(&item.id).unwrap(),
-                self.core.catalog(),
-            )
+            order_summary(item, self.core.items().by_market_id(&item.id).unwrap())
         }
 
         fn listed(&self, dialog_name: &str) -> Option<&str> {
@@ -607,19 +597,6 @@ mod tests {
                 .listed(self.core.items(), dialog_name)
                 .map(|item| item.slug.as_str())
         }
-    }
-
-    #[test]
-    fn market_icon_without_game_ref() {
-        let catalog = empty_catalog();
-        let core = item("legendary_fusion_core", "Legendary Fusion Core", &[], None);
-        assert_eq!(
-            market_icon(&catalog, &core).as_deref(),
-            Some("game/legendary-core.png"),
-            "the market record of the Legendary Core has no game reference"
-        );
-        let set = item("braton_prime_set", "Braton Prime Set", &["set"], None);
-        assert_eq!(market_icon(&catalog, &set), None);
     }
 
     #[test]
@@ -781,7 +758,7 @@ mod tests {
         );
         core.index_market(std::slice::from_ref(&barrel));
         let record = core.items().by_market_id(&barrel.id).unwrap();
-        let summary = order_summary(&barrel, record, &empty_catalog());
+        let summary = order_summary(&barrel, record);
         assert_eq!(summary.name, "Braton Prime Barrel");
         assert_eq!(summary.market_slug.as_deref(), Some("braton_prime_barrel"));
         assert_eq!(summary.unique_name, record.unique_name);

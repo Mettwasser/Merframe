@@ -3,9 +3,7 @@ use std::time::Instant;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
-use wf_core::{
-    ListingChoices, market_icon, market_name, riven_listing_payload, riven_listing_update,
-};
+use wf_core::{ListingChoices, market_name, riven_listing_payload, riven_listing_update};
 use wf_market::{
     Auction, CreateOrderRequest, ItemListings, Order, OrderType, UpdateAuctionRequest,
     UpdateOrderRequest, UserStatus, order_rejection,
@@ -109,7 +107,7 @@ pub async fn market_items(state: Shared<'_>) -> CommandResult<Vec<MarketItem>> {
         .iter()
         .map(|item| MarketItem {
             name: market_name(item).to_owned(),
-            image_name: market_icon(core.catalog(), item),
+            image_name: core.items().market_icon(item),
             id: item.id.clone(),
             slug: item.slug.clone(),
             ducats: item.ducats,

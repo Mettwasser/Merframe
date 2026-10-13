@@ -39,7 +39,7 @@ pub(super) fn reward_breakdown(view: &View, reward: &RelicReward) -> RewardBreak
         ..
     } = *view;
     let unique_name = &reward.item_unique_name;
-    let record = items.resolve(catalog, unique_name);
+    let record = items.resolve(unique_name);
     let component = catalog.component_for_reward(unique_name);
     let stock = &account.stock;
     let owned = stock.count(unique_name);

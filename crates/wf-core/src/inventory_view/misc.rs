@@ -5,7 +5,7 @@ use wf_inventory::{EquipmentItem, Inventory};
 
 use super::{ItemIndex, ItemSummary, MiscRow, SculptureStars};
 use crate::catalog::{Catalog, RELIC_PREFIX, is_fish};
-use crate::identity::{ItemRecord, Variant, catalogued_name};
+use crate::identity::{ItemRecord, ItemTable, Variant};
 use crate::view::View;
 
 const SCULPTURE_SOCKETS: [(&str, u32, u32); 11] = [
@@ -86,8 +86,8 @@ fn misc_source_item<'a>(catalog: &'a Catalog, unique_name: &str) -> Option<&'a I
     catalog.item(&base)
 }
 
-fn is_tradable_misc(catalog: &Catalog, unique_name: &str) -> bool {
-    if catalogued_name(catalog, unique_name).is_none() {
+fn is_tradable_misc(catalog: &Catalog, items: &ItemTable, unique_name: &str) -> bool {
+    if items.known_name(unique_name).is_none() {
         return false;
     }
     if is_emote(unique_name) {
@@ -164,7 +164,10 @@ fn record_row(view: &View, index: &mut ItemIndex, record: &ItemRecord, count: i6
 
 fn counted_rows(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
     let View {
-        account, catalog, ..
+        account,
+        catalog,
+        items,
+        ..
     } = *view;
     let inventory = &account.inventory;
     let mut counted: BTreeMap<(&str, Option<SculptureStars>), i64> = BTreeMap::new();
@@ -175,7 +178,7 @@ fn counted_rows(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
         .chain(&inventory.raw_upgrades)
         .chain(&inventory.level_keys)
     {
-        if !is_misc(&item.item_type) || !is_tradable_misc(catalog, &item.item_type) {
+        if !is_misc(&item.item_type) || !is_tradable_misc(catalog, items, &item.item_type) {
             continue;
         }
         let stars = sculpture_stars(&item.item_type, item.sockets);
@@ -187,42 +190,33 @@ fn counted_rows(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
         .map(|((unique_name, stars), count)| MiscRow {
             market_subtype: catch_size(unique_name),
             stars,
-            ..record_row(
-                view,
-                index,
-                &view.items.resolve(catalog, unique_name),
-                count,
-            )
+            ..record_row(view, index, &items.resolve(unique_name), count)
         })
         .collect()
 }
 
 fn cosmetic_rows(view: &View, index: &mut ItemIndex) -> Vec<MiscRow> {
     let View {
-        account, catalog, ..
+        account,
+        catalog,
+        items,
+        ..
     } = *view;
     let inventory = &account.inventory;
     let mut counted: BTreeMap<&str, i64> = BTreeMap::new();
     for skin in &inventory.weapon_skins {
-        if is_misc(&skin.item_type) && is_tradable_misc(catalog, &skin.item_type) {
+        if is_misc(&skin.item_type) && is_tradable_misc(catalog, items, &skin.item_type) {
             *counted.entry(skin.item_type.as_str()).or_insert(0) += 1;
         }
     }
     for flavour in &inventory.flavour_items {
-        if is_tradable_misc(catalog, &flavour.item_type) {
+        if is_tradable_misc(catalog, items, &flavour.item_type) {
             *counted.entry(flavour.item_type.as_str()).or_insert(0) += 1;
         }
     }
     counted
         .into_iter()
-        .map(|(unique_name, count)| {
-            record_row(
-                view,
-                index,
-                &view.items.resolve(catalog, unique_name),
-                count,
-            )
-        })
+        .map(|(unique_name, count)| record_row(view, index, &items.resolve(unique_name), count))
         .collect()
 }
 
@@ -474,7 +468,8 @@ mod tests {
     #[test]
     fn tradable_gate() {
         let catalog = Catalog::from_json(GATE_ITEMS, fixtures::RELICS, "[]").unwrap();
-        let tradable = |unique_name: &str| is_tradable_misc(&catalog, unique_name);
+        let items = ItemTable::build(&catalog);
+        let tradable = |unique_name: &str| is_tradable_misc(&catalog, &items, unique_name);
 
         assert!(tradable("/Lotus/Upgrades/Skins/Rhino/RhinoHelmetAltB"));
         assert!(!tradable(

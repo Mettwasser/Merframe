@@ -183,7 +183,7 @@ pub(crate) fn tab(view: &View, options: MasteryOptions) -> MasteryTab {
         Vec::new()
     };
 
-    let routes = level_up_routes(account, catalog, &all);
+    let routes = level_up_routes(account, catalog, view.items, &all);
     let unmastered: Vec<MasteryItem> = all.into_iter().filter(|item| !item.mastered).collect();
     let recommended = order_items(unmastered, extras, options);
     let plat_total = recommended

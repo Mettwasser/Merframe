@@ -237,10 +237,8 @@ mod tests {
         rewards: &[&str],
     ) -> RewardScreen {
         let items = ItemTable::build(catalog);
-        let rewards: Vec<ItemSummary> = rewards
-            .iter()
-            .map(|reward| ItemSummary::from(&*items.resolve(catalog, reward)))
-            .collect();
+        let rewards: Vec<ItemSummary> =
+            rewards.iter().map(|reward| items.summary(reward)).collect();
         recommend(account, catalog, &items, prices, favourites, &rewards)
     }
 

@@ -6,7 +6,8 @@ use super::xp::{
 };
 use super::{LevelUpRoute, MasteryItem, RouteMember, intrinsics, star_chart};
 use crate::account::Account;
-use crate::catalog::{Catalog, item_name};
+use crate::catalog::Catalog;
+use crate::identity::ItemTable;
 
 pub(super) fn route(
     kind: &'static str,
@@ -104,7 +105,7 @@ fn rank_route(
     route(kind, label, "rank", count, members)
 }
 
-fn unlisted_route(account: &Account, catalog: &Catalog) -> LevelUpRoute {
+fn unlisted_route(account: &Account, catalog: &Catalog, table: &ItemTable) -> LevelUpRoute {
     let counted = counted_affinity_types(account, catalog);
     let mut count = 0;
     let mut members = Vec::new();
@@ -115,7 +116,7 @@ fn unlisted_route(account: &Account, catalog: &Catalog) -> LevelUpRoute {
             continue;
         }
         count += left;
-        members.push(rank_member(item_name(catalog, item_type), left, per_rank));
+        members.push(rank_member(table.name(item_type), left, per_rank));
     }
     route(
         "unlisted_gear",
@@ -129,6 +130,7 @@ fn unlisted_route(account: &Account, catalog: &Catalog) -> LevelUpRoute {
 pub(super) fn level_up_routes(
     account: &Account,
     catalog: &Catalog,
+    table: &ItemTable,
     items: &[MasteryItem],
 ) -> Vec<LevelUpRoute> {
     let inventory = &account.inventory;
@@ -154,7 +156,7 @@ pub(super) fn level_up_routes(
         .into_iter()
         .chain(star_chart::routes(inventory))
         .chain(intrinsics::routes(inventory))
-        .chain([plexus, venari, unlisted_route(account, catalog)])
+        .chain([plexus, venari, unlisted_route(account, catalog, table)])
         .filter(|route| route.xp_available > 0)
         .collect();
     routes.sort_by(|left, right| {
@@ -185,7 +187,7 @@ mod tests {
     fn for_account(inventory: Inventory) -> Vec<LevelUpRoute> {
         let fixture = Fixture::new(fixtures::mastery_catalog(), inventory).with_prices(prices());
         let rows = items(&fixture.view(), MasteryOptions::default());
-        level_up_routes(&fixture.account, &fixture.catalog, &rows)
+        level_up_routes(&fixture.account, &fixture.catalog, &fixture.items, &rows)
     }
 
     fn route(routes: &[LevelUpRoute], kind: &str) -> Option<LevelUpRoute> {

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use serde::Serialize;
-use wf_core::{Catalog, ItemTable, StoredTrade, Turnover, market_icon, market_name, traded_set};
+use wf_core::{Catalog, ItemTable, StoredTrade, Turnover, market_name, traded_set};
 use wf_market::{Item, OrderType};
 
 use crate::market::MarketItems;
@@ -57,7 +57,7 @@ pub struct MarketMover {
 
 pub fn market_movers(
     items: &MarketItems,
-    catalog: &Catalog,
+    table: &ItemTable,
     turnover: &HashMap<String, Turnover>,
 ) -> Vec<MarketMover> {
     items
@@ -68,7 +68,7 @@ pub fn market_movers(
             Some(MarketMover {
                 slug: item.slug.clone(),
                 name: market_name(item).to_owned(),
-                image_name: market_icon(catalog, item),
+                image_name: table.market_icon(item),
                 category: TradeCategory::of(item),
                 unit_price: turnover.unit_price,
                 volume: turnover.volume,
@@ -143,7 +143,7 @@ pub fn trade_analytics(
                 || item.name.clone(),
                 |listed| market_name(listed).to_owned(),
             ),
-            image_name: listed.and_then(|listed| market_icon(catalog, listed)),
+            image_name: listed.and_then(|listed| table.market_icon(listed)),
             amount: item.count,
             value: plat,
         };
@@ -269,7 +269,7 @@ mod tests {
                 },
             ),
         ]);
-        let movers = market_movers(&market_items(), &catalog(), &turnover);
+        let movers = market_movers(&market_items(), &item_table(), &turnover);
         assert_eq!(movers.len(), 1);
         assert_eq!(movers[0].name, "Braton Prime Set");
         assert_eq!(movers[0].category, TradeCategory::Set);

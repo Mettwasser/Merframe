@@ -129,6 +129,10 @@ impl ItemTable {
         self.by_game_ref.len()
     }
 
+    pub fn market_icon(&self, item: &wf_market::Item) -> Option<String> {
+        self.by_market_id(&item.id)?.image_name.clone()
+    }
+
     pub fn listing_id(&self, dialog_name: &str) -> Option<&str> {
         let named = |name: &str| {
             self.listing_by_name
@@ -155,15 +159,11 @@ impl ItemTable {
                 })
                 .flatten()
         };
-        let component = || {
-            let base = game_ref.strip_suffix("Blueprint")?;
-            self.by_unique_name.get(&format!("{base}Component"))
-        };
         let base = self
             .by_unique_name
             .get(game_ref)
             .or_else(intact_relic)
-            .or_else(component)?;
+            .or_else(|| self.by_held_name.get(game_ref))?;
         Some(self.variant_for(*base, item))
     }
 
@@ -268,6 +268,20 @@ mod tests {
         ));
         assert_eq!(record("melee_influence").name, "Melee Influence");
         assert_eq!(record("panzer_vulpaphyla_imprint").kind, ItemKind::Imprint);
+    }
+
+    #[test]
+    fn market_icon_of_a_listing() {
+        let mut table = ItemTable::build(&fixtures::catalog());
+        let core = market_item("legendary_fusion_core", "Legendary Fusion Core", "", &[]);
+        let set = market_item("braton_prime_set", "Braton Prime Set", "", &["set"]);
+        table.index_market(&[core.clone(), set.clone()]);
+
+        assert_eq!(
+            table.market_icon(&core).as_deref(),
+            Some("game/legendary-core.png")
+        );
+        assert_eq!(table.market_icon(&set), None);
     }
 
     #[test]

@@ -4,8 +4,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use wf_inventory::{ArchonCrystalSlot, Inventory};
 
-use crate::catalog::{Catalog, Stock, item_name, part_identity};
+use crate::catalog::{Catalog, Stock, part_identity};
 use crate::foundry::{self, CraftNode, FoundryItem, farmed_resource, is_blueprint};
+use crate::identity::ItemTable;
 use crate::view::View;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -153,7 +154,7 @@ pub(crate) fn tab(
     resources.sort_by(|left, right| left.name.cmp(&right.name));
     ResourcesTab {
         resources,
-        shards: shards(inventory, view.catalog, stock),
+        shards: shards(inventory, view.catalog, view.items, stock),
         items: counted,
         credits,
     }
@@ -168,7 +169,12 @@ const SHARD_COLOURS: [(&str, &str); 6] = [
     ("Violet", "ACC_PURPLE"),
 ];
 
-fn shards(inventory: &Inventory, catalog: &Catalog, stock: &Stock) -> Vec<ShardRow> {
+fn shards(
+    inventory: &Inventory,
+    catalog: &Catalog,
+    items: &ItemTable,
+    stock: &Stock,
+) -> Vec<ShardRow> {
     SHARD_COLOURS
         .iter()
         .filter_map(|(tail, colour)| {
@@ -188,10 +194,11 @@ fn shards(inventory: &Inventory, catalog: &Catalog, stock: &Stock) -> Vec<ShardR
                             })
                             .count()
                     };
+                    let record = items.resolve(&suit.item_type);
                     ShardHolder {
                         item_id: suit.item_id.as_str().to_owned(),
-                        name: item_name(catalog, &suit.item_type),
-                        image_name: catalog.icon_for(&suit.item_type),
+                        name: record.name.clone(),
+                        image_name: record.image_name.clone(),
                         normal: installed(colour),
                         tauforged: installed(&tauforged_colour),
                     }

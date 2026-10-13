@@ -6,7 +6,7 @@ use wf_inventory::{EquipmentItem, Inventory, RivenFingerprint, UpgradeSlot};
 
 use super::{ItemIndex, ItemSummary, ModHolder, ModRow, UpgradePrices};
 use crate::catalog::{ARCANE_PREFIX, Catalog};
-use crate::identity::{ItemKind, Variant, display_name, is_riven};
+use crate::identity::{ItemKind, ItemTable, Variant, is_riven};
 use crate::prices::PriceSource;
 use crate::view::View;
 
@@ -38,6 +38,7 @@ pub(crate) fn arcanes(view: &View, index: &mut ItemIndex) -> Vec<ModRow> {
 
 fn equipped_holders(
     catalog: &Catalog,
+    items: &ItemTable,
     slots: &HashMap<&str, Vec<UpgradeSlot<'_>>>,
     references: &BTreeSet<&str>,
     index: &mut ItemIndex,
@@ -63,7 +64,7 @@ fn equipped_holders(
                 let known = catalog.item(identity);
                 ModHolder {
                     item_id: item_id.to_owned(),
-                    name: display_name(catalog, identity),
+                    name: items.name(identity),
                     custom_name: item.custom_name().map(str::to_owned),
                     image_name: known.and_then(|known| known.image_name.clone()),
                     rank: known.map(|known| known.mastery_rank_at(item.xp)),
@@ -180,7 +181,7 @@ fn upgrade_rows(view: &View, index: &mut ItemIndex, wanted: UpgradeKind) -> Vec<
         .map(|((unique_name, rank), Tally { count, references })| {
             let record = match items.variant(unique_name, Variant::Veiled) {
                 Some(veiled) => Cow::Borrowed(veiled),
-                None => items.resolve(catalog, unique_name),
+                None => items.resolve(unique_name),
             };
 
             let (rarity, max_rank) = match record.kind {
@@ -198,7 +199,7 @@ fn upgrade_rows(view: &View, index: &mut ItemIndex, wanted: UpgradeKind) -> Vec<
                 max_rank,
                 prices: upgrade_prices(prices, slug, rank, max_rank, wanted),
                 rarity,
-                equipped_in: equipped_holders(catalog, &slots, &references, index),
+                equipped_in: equipped_holders(catalog, items, &slots, &references, index),
             }
         })
         .collect();

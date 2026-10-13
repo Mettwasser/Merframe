@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::account::Account;
 use crate::catalog::Catalog;
-use crate::identity::display_name;
+use crate::identity::ItemTable;
 use crate::mastery::{self, MasteryOptions};
 use crate::store::{RelicOpening, StatPoint, StoredDelta, TimeRange};
 
@@ -30,11 +30,11 @@ pub struct OpeningRow {
     pub player_count: i64,
 }
 
-pub(crate) fn delta_rows(catalog: &Catalog, deltas: Vec<StoredDelta>) -> Vec<DeltaRow> {
+pub(crate) fn delta_rows(items: &ItemTable, deltas: Vec<StoredDelta>) -> Vec<DeltaRow> {
     deltas
         .into_iter()
         .map(|delta| DeltaRow {
-            name: display_name(catalog, &delta.item_type),
+            name: items.name(&delta.item_type),
             item_type: delta.item_type,
             category: delta.category,
             delta: delta.delta,
@@ -42,14 +42,14 @@ pub(crate) fn delta_rows(catalog: &Catalog, deltas: Vec<StoredDelta>) -> Vec<Del
         .collect()
 }
 
-pub(crate) fn opening_rows(catalog: &Catalog, openings: Vec<RelicOpening>) -> Vec<OpeningRow> {
+pub(crate) fn opening_rows(items: &ItemTable, openings: Vec<RelicOpening>) -> Vec<OpeningRow> {
     openings
         .into_iter()
         .map(|opening| OpeningRow {
             id: opening.id,
             at: opening.at,
             relic: opening.relic,
-            reward: display_name(catalog, &opening.reward_item),
+            reward: items.name(&opening.reward_item),
             player_count: opening.player_count,
         })
         .collect()
@@ -352,8 +352,9 @@ mod naming_tests {
         let catalog = fixtures::catalog();
         let relic = catalog.relics().next().unwrap();
         let relic_unique_name = relic.unique_names[&Refinement::Radiant].clone();
+        let items = ItemTable::build(&catalog);
         let deltas = delta_rows(
-            &catalog,
+            &items,
             vec![StoredDelta {
                 item_type: relic_unique_name,
                 category: "MiscItems".to_owned(),
@@ -362,7 +363,7 @@ mod naming_tests {
         );
         assert_eq!(deltas[0].name, format!("{} Relic (Radiant)", relic.name));
         let openings = opening_rows(
-            &catalog,
+            &items,
             vec![RelicOpening {
                 id: 1,
                 at: Utc::now(),

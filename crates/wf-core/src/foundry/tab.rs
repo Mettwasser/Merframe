@@ -5,9 +5,8 @@ use wf_data::{Component, Item, base_warframe_name, helminth_ability, store_item_
 use wf_inventory::Inventory;
 use wf_worldstate::WorldState;
 
-use crate::catalog::{
-    Catalog, VaultStatus, component_image, is_prime, is_umbra, item_name, part_name,
-};
+use crate::catalog::{Catalog, VaultStatus, component_image, is_prime, is_umbra, part_name};
+use crate::identity::ItemTable;
 use crate::mastery::{includes_founders, kind_of, masterable};
 use crate::view::View;
 
@@ -27,7 +26,7 @@ pub(crate) fn tab(
     now: DateTime<Utc>,
 ) -> FoundryTab {
     FoundryTab {
-        pending: pending(&view.account.inventory, view.catalog, now),
+        pending: pending(&view.account.inventory, view.items, now),
         items: items(view, world, include_founders, now),
         timers: world.map(|state| timers(state, now)).unwrap_or_default(),
     }
@@ -35,7 +34,7 @@ pub(crate) fn tab(
 
 pub(crate) fn pending(
     inventory: &Inventory,
-    catalog: &Catalog,
+    items: &ItemTable,
     now: DateTime<Utc>,
 ) -> Vec<PendingBuild> {
     let mut builds: Vec<PendingBuild> = inventory
@@ -44,9 +43,10 @@ pub(crate) fn pending(
         .map(|recipe| {
             let completes_at = recipe.completion_date.datetime();
             let remaining_secs = completes_at.signed_duration_since(now).num_seconds();
+            let record = items.resolve(&recipe.item_type);
             PendingBuild {
-                name: recipe_name(catalog, &recipe.item_type),
-                image_name: recipe_image(catalog, &recipe.item_type),
+                name: record.name.clone(),
+                image_name: record.image_name.clone(),
                 item_type: recipe.item_type.clone(),
                 completes_at,
                 remaining_secs,
@@ -254,22 +254,6 @@ pub(crate) fn timers(world: &WorldState, now: DateTime<Utc>) -> Vec<WorldTimer> 
         .collect()
 }
 
-fn recipe_image(catalog: &Catalog, unique_name: &str) -> Option<String> {
-    if let Some((item, component)) = catalog.component_for_stock(unique_name) {
-        return component_image(item, component);
-    }
-    catalog
-        .item(unique_name)
-        .and_then(|item| item.image_name.clone())
-}
-
-fn recipe_name(catalog: &Catalog, unique_name: &str) -> String {
-    match catalog.component_for_stock(unique_name) {
-        Some((item, component)) => part_name(item, component),
-        None => item_name(catalog, unique_name),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -301,8 +285,8 @@ mod tests {
     #[test]
     fn pending_builds() {
         let inventory = fixtures::inventory();
-        let catalog = fixtures::catalog();
-        let builds = pending(&inventory, &catalog, at(1_787_000_000_000));
+        let items = ItemTable::build(&fixtures::catalog());
+        let builds = pending(&inventory, &items, at(1_787_000_000_000));
         assert_eq!(builds.len(), 4);
         assert_eq!(builds[0].name, "Bio Component Blueprint");
         assert_eq!(builds[0].remaining_secs, 0);
@@ -327,17 +311,17 @@ mod tests {
             "ItemId": { "$oid": "0123456789abcdef01234567" }
         }]);
         let inventory = Inventory::parse(&value.to_string()).unwrap();
-        let catalog = fixtures::catalog();
+        let fixture = Fixture::new(fixtures::catalog(), inventory);
         let now = at(1_787_000_000_000);
 
-        let builds = pending(&inventory, &catalog, now);
+        let builds = pending(&fixture.account.inventory, &fixture.items, now);
         assert_eq!(builds[0].name, "Excalibur Neuroptics");
         assert_eq!(
             builds[0].image_name.as_deref(),
             Some("GenericWarframeHelmet.png")
         );
 
-        let rows = items(&Fixture::new(catalog, inventory).view(), None, None, now);
+        let rows = items(&fixture.view(), None, None, now);
         let excalibur = row(&rows, "/Lotus/Powersuits/Excalibur/Excalibur");
         assert!(excalibur.progress.pending);
         assert!(excalibur.progress.owned);

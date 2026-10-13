@@ -230,7 +230,7 @@ impl Core {
         let events = vec![CoreEvent::TradeCompleted {
             at: now,
             partner: screen.partner.as_deref().map(player_name),
-            trade: Trade::from_screen(screen, &self.catalog),
+            trade: Trade::from_screen(screen, &self.catalog, &self.items),
         }];
         self.record(&events, now)?;
         Ok(events)
@@ -268,7 +268,7 @@ impl Core {
         let rewards: Vec<ItemSummary> = screen
             .rewards
             .iter()
-            .map(|reward| ItemSummary::from(&*self.items.resolve(&self.catalog, reward)))
+            .map(|reward| self.items.summary(reward))
             .collect();
         let events = vec![CoreEvent::RelicRewardScreen {
             relic,
@@ -496,12 +496,12 @@ impl Core {
 
     pub fn stats_tab(&self, range: TimeRange, now: DateTime<Utc>) -> Result<StatsTab> {
         let latest_deltas = match &self.latest_snapshot {
-            Some(snapshot) => stats::delta_rows(&self.catalog, self.store.deltas(snapshot.id)?),
+            Some(snapshot) => stats::delta_rows(&self.items, self.store.deltas(snapshot.id)?),
             None => Vec::new(),
         };
         let series = stats::daily_series(&self.store.stats_series(range)?);
         let trades = self.store.trades(range)?;
-        let relic_openings = stats::opening_rows(&self.catalog, self.store.relic_openings(range)?);
+        let relic_openings = stats::opening_rows(&self.items, self.store.relic_openings(range)?);
         let earliest = [
             series.first().map(|point| point.at),
             trades.first().map(|trade| trade.at),

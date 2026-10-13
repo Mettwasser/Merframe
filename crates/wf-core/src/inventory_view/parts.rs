@@ -5,7 +5,7 @@ use wf_data::{Component, Item};
 use super::misc::is_landing_craft_part;
 use super::{ItemIndex, ItemStatus, ItemSummary, PartRow, SetComponent, SetLink, SetRow};
 use crate::catalog::{Stock, is_prime};
-use crate::identity::{ItemRecord, ItemTable, Variant};
+use crate::identity::{ItemKind, ItemRecord, ItemTable, Variant};
 use crate::prices::Prices;
 use crate::view::View;
 
@@ -63,10 +63,14 @@ pub(crate) fn parts(view: &View, index: &mut ItemIndex) -> Vec<PartRow> {
     let mut rows: Vec<PartRow> = counted
         .into_iter()
         .filter_map(|(unique_name, held)| {
-            let (item, component) = catalog.component_for_stock(unique_name)?;
-            if !component.tradable {
+            let record = items.lookup(unique_name)?;
+            let ItemKind::Part { set, tradable, .. } = record.kind else {
+                return None;
+            };
+            if !tradable {
                 return None;
             }
+
             let mut count = held;
             if building.contains(unique_name) {
                 count -= 1;
@@ -74,14 +78,12 @@ pub(crate) fn parts(view: &View, index: &mut ItemIndex) -> Vec<PartRow> {
             if count <= 0 {
                 return None;
             }
-            let part = items.resolve(catalog, unique_name);
-            let set = items.variant(&item.unique_name, Variant::Set)?;
+
+            let set = &items[set];
+            let item = catalog.item(&set.unique_name)?;
+            let part = record.held_as(unique_name);
             let slug = part.market_slug.as_deref();
-            let favourite = favourites.any([
-                unique_name,
-                component.unique_name.as_str(),
-                item.unique_name.as_str(),
-            ]);
+            let favourite = favourites.any([unique_name, &record.unique_name, &set.unique_name]);
             Some(PartRow {
                 item: index.add_marked(ItemSummary::from(&*part), favourite),
                 count,
