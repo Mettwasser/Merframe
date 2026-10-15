@@ -41,6 +41,8 @@ Bug reports, feature requests, and contributions are welcome.
 Merframe is a fan project and is not affiliated with Digital Extremes.
 Warframe and the game artwork under `app/public/game/` are the property of Digital Extremes Ltd. and are used under its content policy for non-commercial fan projects.
 
+For legality and risks of the app, visit our [Legality & Risks Wiki page](https://github.com/akshualy/Merframe/wiki/Legality-&-Risks).
+
 ## Running the app
 
 Releases are provided as an `.exe` or `.msi` installer (Windows), `.deb`, `.rpm`, Arch `.pkg.tar.zst` packages, and an `AppImage`.
