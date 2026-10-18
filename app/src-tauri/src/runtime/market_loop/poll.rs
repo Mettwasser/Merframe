@@ -104,7 +104,7 @@ async fn checked_session<R: Runtime>(
 
     if let Some(token) = &session.rotated_token {
         debug!("Warframe.market issued a new token");
-        if let Err(error) = market_session::store_token(app, state, token.clone()) {
+        if let Err(error) = market_session::store_token(app, state, token) {
             warn!(%error, "Rotated token save failed");
         }
     }
@@ -112,7 +112,7 @@ async fn checked_session<R: Runtime>(
     let account = MarketAccount::from(&session);
     if !was_signed_in {
         info!(account = account.ingame_name, "Warframe.market signed in");
-        if let Err(error) = market_session::record_account(app, state, account.clone()) {
+        if let Err(error) = market_session::record_account(app, state, &account) {
             warn!(%error, "Market account save failed");
         }
     }

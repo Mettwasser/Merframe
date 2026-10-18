@@ -84,9 +84,9 @@ pub async fn market_login<R: Runtime>(
         ));
     }
 
-    market_session::store_token(&app, &state, token)?;
+    market_session::store_token(&app, &state, &token)?;
     let account = MarketAccount::from(&session);
-    market_session::record_account(&app, &state, account.clone())?;
+    market_session::record_account(&app, &state, &account)?;
     Ok(account)
 }
 
