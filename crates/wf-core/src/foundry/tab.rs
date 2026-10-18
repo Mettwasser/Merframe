@@ -5,7 +5,7 @@ use wf_data::{Component, Item, base_warframe_name, helminth_ability, store_item_
 use wf_inventory::Inventory;
 use wf_worldstate::WorldState;
 
-use crate::catalog::{Catalog, is_prime, is_umbra, part_name};
+use crate::catalog::{Catalog, is_umbra, names_a_prime, part_name};
 use crate::identity::ItemTable;
 use crate::mastery::{includes_founders, kind_of, masterable};
 use crate::view::View;
@@ -204,7 +204,7 @@ fn subsumed_warframes<'a>(inventory: &Inventory, catalog: &'a Catalog) -> HashSe
 }
 
 fn helminth(item: &Item, subsumed: &HashSet<&str>) -> Option<Helminth> {
-    if is_prime(item) || is_umbra(item) {
+    if names_a_prime(&item.name) || is_umbra(item) {
         return None;
     }
 

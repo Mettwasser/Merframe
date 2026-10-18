@@ -85,14 +85,16 @@ impl Catalog {
     }
 
     pub fn prime_parts(&self) -> impl Iterator<Item = (&Item, &Component)> {
-        self.items().filter(|item| is_prime(item)).flat_map(|item| {
-            item.components
-                .as_deref()
-                .unwrap_or_default()
-                .iter()
-                .filter(|component| is_part(component))
-                .map(move |component| (item, component))
-        })
+        self.items()
+            .filter(|item| names_a_prime(&item.name))
+            .flat_map(|item| {
+                item.components
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .filter(|component| is_part(component))
+                    .map(move |component| (item, component))
+            })
     }
 }
 
@@ -164,16 +166,12 @@ pub(crate) fn component_image(item: &Item, component: &Component) -> Option<Stri
     }
 }
 
-pub(crate) fn is_prime(item: &Item) -> bool {
-    item.name.contains("Prime")
-}
-
 pub(crate) fn is_umbra(item: &Item) -> bool {
     item.name.ends_with(" Umbra")
 }
 
 pub(crate) fn names_a_prime(name: &str) -> bool {
-    name.to_lowercase().contains("prime")
+    name.contains("Prime")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]

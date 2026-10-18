@@ -4,7 +4,7 @@ use wf_data::{Component, Item};
 
 use super::misc::is_landing_craft_part;
 use super::{ItemIndex, ItemSummary, PartRow, SetComponent, SetLink, SetRow};
-use crate::catalog::{Stock, is_prime};
+use crate::catalog::{Stock, names_a_prime};
 use crate::identity::{ItemKind, ItemRecord, ItemTable, Variant};
 use crate::prices::Prices;
 use crate::view::View;
@@ -100,7 +100,7 @@ pub(crate) fn parts(view: &View, index: &mut ItemIndex) -> Vec<PartRow> {
 }
 
 fn set_parts(item: &Item) -> impl Iterator<Item = &Component> {
-    let prime = is_prime(item);
+    let prime = names_a_prime(&item.name);
     item.components.iter().flatten().filter(move |component| {
         crate::catalog::is_part(component) && (component.tradable || prime)
     })

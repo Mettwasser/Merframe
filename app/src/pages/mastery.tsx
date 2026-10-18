@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { Amount } from "@/components/currency";
 import { FavouriteStar } from "@/components/favourite-star";
 import { GameIcon } from "@/components/game-icon";
 import { ItemImage, prefetchImages } from "@/components/item-image";
@@ -355,7 +356,9 @@ export function MasteryPage() {
                     )}
                     {!item.owned && (
                       <Badge variant="accent">
-                        {num(item.acquisition.plat_cost)} plat
+                        <Amount currency="platinum" plain size={14}>
+                          {num(item.acquisition.plat_cost)}
+                        </Amount>
                       </Badge>
                     )}
                   </span>

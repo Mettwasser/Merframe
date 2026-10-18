@@ -1,4 +1,5 @@
 import { Store } from "lucide-react";
+import { Amount } from "@/components/currency";
 import { EmptyNote } from "@/components/page";
 import { num, secondsUntil } from "@/lib/format";
 import { timeLeft } from "@/lib/world";
@@ -32,9 +33,15 @@ function MarketOffers({
                 : left
             }
             value={
-              offer.platinum > 0
-                ? `${num(offer.platinum)} plat`
-                : `${num(offer.credits)} Credits`
+              offer.platinum > 0 ? (
+                <Amount currency="platinum" plain>
+                  {num(offer.platinum)}
+                </Amount>
+              ) : (
+                <Amount currency="credits" plain>
+                  {num(offer.credits)}
+                </Amount>
+              )
             }
           />
         );

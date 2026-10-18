@@ -7,7 +7,7 @@ use super::{
     Acquisition, CategoryTotals, Level, MasteryComponent, MasteryGroup, MasteryItem, MasteryOptions,
 };
 use crate::account::Account;
-use crate::catalog::{Catalog, Stock, part_name};
+use crate::catalog::{Catalog, Stock, names_a_prime, part_name};
 use crate::identity::{ItemTable, market_slug, part_identity};
 use crate::prices::PriceSource;
 use crate::view::View;
@@ -166,7 +166,7 @@ impl<'a> OwnedRelicDrops<'a> {
     }
 
     fn probability(&self, item: &MasteryItem) -> f64 {
-        if !item.name.contains("Prime") {
+        if !names_a_prime(&item.name) {
             return 0.0;
         }
         let mut probability = 1.0_f64;
@@ -276,7 +276,7 @@ pub(super) fn totals(items: &[MasteryItem]) -> (CategoryTotals, CategoryTotals, 
 }
 
 fn is_prime_collection_item(item: &Item) -> bool {
-    item.name.contains("Prime")
+    names_a_prime(&item.name)
         && PRIME_COLLECTION_CATEGORIES.contains(&item.category.as_str())
         && !is_sentinel_weapon(item)
 }

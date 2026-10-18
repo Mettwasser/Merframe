@@ -11,8 +11,8 @@ use wf_data::{
 use wf_inventory::RIVEN_MARKER;
 
 use crate::catalog::{
-    Catalog, VaultStatus, component_image, display_name_from_path, is_fish, is_prime,
-    names_a_prime, part_name,
+    Catalog, VaultStatus, component_image, display_name_from_path, is_fish, names_a_prime,
+    part_name,
 };
 use crate::inventory_view::ItemSummary;
 
@@ -173,7 +173,7 @@ impl ItemRecord {
         Self {
             unique_name: unique_name.to_owned(),
             market_slug: Some(market_slug(&name)),
-            prime: name.contains("Prime"),
+            prime: names_a_prime(&name),
             vault: None,
             image_name,
             name,
@@ -348,7 +348,7 @@ impl ItemTable {
             .iter()
             .map(|component| {
                 let record = ItemRecord {
-                    prime: is_prime(item),
+                    prime: names_a_prime(&item.name),
                     ..ItemRecord::new(
                         &component.unique_name,
                         part_name(item, component),

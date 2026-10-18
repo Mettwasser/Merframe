@@ -8,6 +8,7 @@ import {
   Tag,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { Amount } from "@/components/currency";
 import {
   archonIcon,
   GameIcon,
@@ -218,7 +219,13 @@ export function BaroPanel({
                   label={offer.name}
                   owned={offer.owned}
                   value={
-                    offer.ducats === null ? "-" : `${num(offer.ducats)} Ducats`
+                    offer.ducats === null ? (
+                      "-"
+                    ) : (
+                      <Amount currency="ducats" plain>
+                        {num(offer.ducats)}
+                      </Amount>
+                    )
                   }
                 />
               ))}
@@ -279,11 +286,22 @@ export function DarvoPanel({
           <div key={deal.name} className="flex flex-col gap-1.5">
             <InfoRow
               label={deal.name}
-              value={`${num(deal.sale_price)} plat`}
+              value={
+                <Amount currency="platinum" plain>
+                  {num(deal.sale_price)}
+                </Amount>
+              }
               strong
             />
             <InfoRow
-              label={`Was ${num(deal.original_price)} plat`}
+              label={
+                <>
+                  Was{" "}
+                  <Amount currency="platinum" plain className="inline-flex">
+                    {num(deal.original_price)}
+                  </Amount>
+                </>
+              }
               value={`-${deal.discount_percent}%`}
             />
             <InfoRow
