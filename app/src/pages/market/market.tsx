@@ -6,7 +6,6 @@ import {
   useMemo,
   useState,
 } from "react";
-import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { Amount } from "@/components/currency";
 import { Page, Section, Stat } from "@/components/page";
@@ -14,15 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLatestAttempt } from "@/hooks/use-latest-attempt";
 import { useListen } from "@/hooks/use-listen";
 import { useTabParam } from "@/hooks/use-tab-param";
-import {
-  api,
-  errorMessage,
-  logError,
-  openExternal,
-  reportError,
-} from "@/lib/bridge";
+import { api, logError, openExternal, reportError } from "@/lib/bridge";
 import { ago, MARKET_CHATS_URL, num } from "@/lib/format";
 import { notify } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -56,6 +50,7 @@ export function MarketPage() {
   const [tab, setTab] = useTabParam<MarketTab>("orders");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { attempt, cancel } = useLatestAttempt();
   const [sessionRejected, setSessionRejected] = useState(false);
   const account = status?.market_account ?? null;
 
@@ -81,23 +76,20 @@ export function MarketPage() {
     };
   }, []);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(() => {
     setLoading(true);
-    try {
-      const [nextOrders, nextAuctions] = await Promise.all([
-        api.marketMyOrders(),
-        api.marketMyAuctions(),
-      ]);
-      setListings(nextOrders, nextAuctions, new Date().toISOString());
-      setError(null);
-    } catch (error) {
-      const message = errorMessage(error);
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setListings]);
+    return attempt(
+      () => Promise.all([api.marketMyOrders(), api.marketMyAuctions()]),
+      {
+        loaded: ([nextOrders, nextAuctions]) => {
+          setListings(nextOrders, nextAuctions, new Date().toISOString());
+          setError(null);
+        },
+        failed: setError,
+        settled: () => setLoading(false),
+      },
+    );
+  }, [attempt, setListings]);
 
   useEffect(() => {
     const { at } = useMarketListingsStore.getState();
@@ -157,12 +149,13 @@ export function MarketPage() {
   const handleSignOut = useCallback(async () => {
     try {
       await api.marketLogout();
+      cancel();
       clearListings();
       setStatus(await api.gameStatus());
     } catch (error) {
       reportError(error);
     }
-  }, [clearListings, setStatus]);
+  }, [cancel, clearListings, setStatus]);
 
   const totals = useMemo(() => {
     const sell = orders.rows.filter((order) => order.order_type === "sell");

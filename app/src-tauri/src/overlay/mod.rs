@@ -643,15 +643,21 @@ fn hide<R: Runtime>(app: &AppHandle<R>, state: &Arc<AppState>, kind: Kind) {
 }
 
 fn follow_game_window<R: Runtime>(app: &AppHandle<R>, state: &Arc<AppState>, focused: bool) {
-    let settings = read(&state.settings);
-    if !windowed(state, &settings) {
-        return;
-    }
+    let shown = {
+        let settings = read(&state.settings);
+        if !windowed(state, &settings) {
+            return;
+        }
 
-    let only_while_game_active = settings.overlays.overlay_only_while_game_active;
-    for kind in KINDS {
-        let due = enabled(&settings, kind) && lock(&state.overlays.state).occupied(kind);
-        let shows = window_shows(only_while_game_active, Some(focused), due);
+        let only_while_game_active = settings.overlays.overlay_only_while_game_active;
+        let slots = lock(&state.overlays.state);
+        KINDS.map(|kind| {
+            let due = enabled(&settings, kind) && slots.occupied(kind);
+            window_shows(only_while_game_active, Some(focused), due)
+        })
+    };
+
+    for (kind, shows) in KINDS.into_iter().zip(shown) {
         settle(app, state, kind, shows);
     }
 }

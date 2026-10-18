@@ -13,6 +13,7 @@ import { Field } from "@/components/ui/field";
 import { Hint } from "@/components/ui/hint";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLatestAttempt } from "@/hooks/use-latest-attempt";
 import { api, openExternal, reportError } from "@/lib/bridge";
 import { marketUrl } from "@/lib/format";
 import { notify } from "@/lib/toast";
@@ -149,6 +150,7 @@ export function MarketPanel() {
   const [cyanStars, setCyanStars] = useState("0");
   const [side, setSide] = useState<OrderType>("sell");
   const [posting, setPosting] = useState(false);
+  const { attempt } = useLatestAttempt();
 
   const isMod = selected?.max_rank != null;
   const subtypes = selected?.subtypes ?? [];
@@ -171,19 +173,17 @@ export function MarketPanel() {
       setSubtype(defaultSubtype(item, subtype));
       setAmberStars(String(stars?.amber ?? 0));
       setCyanStars(String(stars?.cyan ?? 0));
-      try {
-        const next = await api.marketItemOrders(item.slug);
-        setListings(next);
-        const lowest = next.sell[0]?.platinum;
-        setPlatinum(lowest === undefined ? "" : String(Math.max(1, lowest)));
-      } catch (error) {
-        setListings(null);
-        reportError(error);
-      } finally {
-        setLoadingOrders(false);
-      }
+      await attempt(() => api.marketItemOrders(item.slug), {
+        loaded: (next) => {
+          setListings(next);
+          const lowest = next.sell[0]?.platinum;
+          setPlatinum(lowest === undefined ? "" : String(Math.max(1, lowest)));
+        },
+        failed: () => setListings(null),
+        settled: () => setLoadingOrders(false),
+      });
     },
-    [],
+    [attempt],
   );
 
   useEffect(() => {
