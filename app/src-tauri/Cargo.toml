@@ -55,7 +55,7 @@ notify-rust = { workspace = true }
 windows-sys = { workspace = true }
 
 [features]
-bindings = ["dep:ts-rs", "wf-core/bindings", "wf-data/bindings", "wf-market/bindings", "wf-worldstate/bindings"]
+bindings = ["dep:ts-rs", "wf-core/bindings", "wf-data/bindings", "wf-market/bindings", "wf-worldstate/bindings", "wf-event-feed-types/bindings"]
 schema = ["dep:schemars", "wf-core/schema"]
 
 [lints]

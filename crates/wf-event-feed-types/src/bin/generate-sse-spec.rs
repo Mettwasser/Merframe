@@ -16,7 +16,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_path = workspace_dir.join("specs/sse.schema.json");
 
     fs::create_dir_all(output_path.parent().unwrap())?;
-    fs::write(output_path, json)?;
+    fs::write(&output_path, json)?;
+
+    println!("Generated file at {}", output_path.display());
 
     Ok(())
 }
