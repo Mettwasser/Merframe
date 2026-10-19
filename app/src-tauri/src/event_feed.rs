@@ -9,100 +9,42 @@ use axum::middleware::{self, Next};
 use axum::response::sse::{Event, KeepAlive};
 use axum::response::{IntoResponse, Response, Sse};
 use axum::routing::get;
-use chrono::{DateTime, Utc};
 use futures_util::stream::{self, Stream, StreamExt};
-use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, watch};
 use tokio_stream::wrappers::BroadcastStream;
 use tracing::{debug, info, warn};
-use wf_core::{CoreEvent, FissureInfo, InventorySummary, RewardScreen, Trade};
+use wf_core::CoreEvent;
+use wf_event_feed_types::{FeedEvent, FeedStatus};
 
-use crate::runtime::{AppEvent, MarketAutoClose, update_status};
+use crate::runtime::{AppEvent, update_status};
 use crate::settings::EventFeedSettings;
 use crate::state::{AppState, EventFeedStatus, GameStatus, lock, read};
 
 const BUFFERED_EVENTS: usize = 64;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct FeedStatus {
-    pub game_detected: bool,
-    pub scanning: bool,
-    pub log_attached: bool,
-    pub last_sync_at: Option<DateTime<Utc>>,
-    pub world_state_at: Option<DateTime<Utc>>,
-    pub trades_remaining: Option<u32>,
-}
-
-impl From<&GameStatus> for FeedStatus {
-    fn from(status: &GameStatus) -> Self {
-        Self {
-            game_detected: status.game_detected,
-            scanning: status.scanning,
-            log_attached: status.log_attached,
-            last_sync_at: status.last_sync_at,
-            world_state_at: status.world_state_at,
-            trades_remaining: status.trades_remaining,
+#[allow(clippy::from_over_into)]
+impl Into<FeedStatus> for &GameStatus {
+    fn into(self) -> FeedStatus {
+        FeedStatus {
+            game_detected: self.game_detected,
+            scanning: self.scanning,
+            log_attached: self.log_attached,
+            last_sync_at: self.last_sync_at,
+            world_state_at: self.world_state_at,
+            trades_remaining: self.trades_remaining,
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct FeedInventory {
-    pub mr: u32,
-    pub plat: i64,
-    pub credits: i64,
-    pub endo: i64,
-    pub ducats: i64,
-    pub changes: usize,
+pub trait FeedEventExt: Sized {
+    fn forwarded(event: &AppEvent) -> Option<Self>;
+    fn from_core(event: &CoreEvent) -> Option<Self>;
 }
 
-impl From<&InventorySummary> for FeedInventory {
-    fn from(summary: &InventorySummary) -> Self {
-        Self {
-            mr: summary.mr,
-            plat: summary.plat,
-            credits: summary.credits,
-            endo: summary.endo,
-            ducats: summary.ducats,
-            changes: summary.changes,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(tag = "event", content = "data", rename_all = "snake_case")]
-pub enum FeedEvent {
-    Status(FeedStatus),
-    InventoryUpdated(FeedInventory),
-    RelicRewardScreen {
-        relic: Option<String>,
-        screen: RewardScreen,
-    },
-    TradeCompleted {
-        at: DateTime<Utc>,
-        trade: Trade,
-    },
-    FissureAlert {
-        fissure: FissureInfo,
-    },
-    TimerAlert {
-        name: String,
-        next_state: String,
-        ends_at: DateTime<Utc>,
-        remaining_secs: i64,
-    },
-    TradesUpdated,
-    WorldStateUpdated,
-    RivenDataUpdated,
-    PricesUpdated,
-    FavouriteUpdated,
-    MarketAutoClosed(MarketAutoClose),
-}
-
-impl FeedEvent {
-    pub fn forwarded(event: &AppEvent) -> Option<Self> {
+impl FeedEventExt for FeedEvent {
+    fn forwarded(event: &AppEvent) -> Option<Self> {
         match event {
             AppEvent::StatusUpdated(status) => Some(Self::Status(status.into())),
             AppEvent::CoreEvent(envelope) => Self::from_core(&envelope.event),
@@ -150,6 +92,7 @@ impl FeedEvent {
     }
 }
 
+/// Cloning clones [Arc]s. So cloning shares internal state and is cheap.
 #[derive(Clone)]
 pub struct EventFeed {
     events: broadcast::Sender<FeedEvent>,
@@ -284,10 +227,11 @@ async fn subscribe(
 
 #[cfg(test)]
 mod tests {
+    use chrono::Utc;
     use serde_json::{Value, json};
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::net::TcpStream;
-    use wf_core::TradeItem;
+    use wf_core::{InventorySummary, Trade, TradeItem};
 
     use super::*;
     use crate::envelope::CoreEventEnvelope;

@@ -1,32 +1,15 @@
 use std::sync::Arc;
 
-use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 use tracing::{debug, info, warn};
 use wf_core::{Trade, TradeItem, market_slug, relic_refinement, traded_set};
+use wf_event_feed_types::market::{AutoCloseKind, MarketAutoClose};
 use wf_market::{Auction, Item, Order, OrderType};
 
 use super::market_refresh;
 use crate::market::{self, MarketCategory};
 use crate::runtime::{AppEvent, emit};
 use crate::state::{AppState, lock};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
-#[serde(rename_all = "lowercase")]
-pub enum AutoCloseKind {
-    Auction,
-    Sell,
-    Buy,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
-pub struct MarketAutoClose {
-    pub item: String,
-    pub quantity: u32,
-    pub kind: AutoCloseKind,
-}
 
 pub(crate) async fn auto_close<R: Runtime>(
     app: &AppHandle<R>,

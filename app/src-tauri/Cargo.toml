@@ -35,6 +35,7 @@ tokio-stream = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 ts-rs = { workspace = true, optional = true }
+schemars = { workspace = true, optional = true }
 wf-core = { workspace = true }
 wf-data = { workspace = true, features = ["fetch"] }
 wf-inventory = { workspace = true }
@@ -43,6 +44,7 @@ wf-market = { workspace = true, features = ["fetch"] }
 wf-mem = { workspace = true }
 wf-scan = { workspace = true }
 wf-worldstate = { workspace = true, features = ["fetch"] }
+wf-event-feed-types = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gdk = { workspace = true }
@@ -54,6 +56,7 @@ windows-sys = { workspace = true }
 
 [features]
 bindings = ["dep:ts-rs", "wf-core/bindings", "wf-data/bindings", "wf-market/bindings", "wf-worldstate/bindings"]
+schema = ["dep:schemars", "wf-core/schema"]
 
 [lints]
 workspace = true
