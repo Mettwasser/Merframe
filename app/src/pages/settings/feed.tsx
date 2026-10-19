@@ -30,9 +30,9 @@ export function EventFeed({ draft, patch }: { draft: Settings; patch: Patch }) {
         <SwitchRow
           checked={draft.event_feed_enabled}
           onChange={(checked) => patch({ event_feed_enabled: checked })}
-          hint="Only this computer can connect. Game status, inventory changes, relic rewards, trades and alerts are streamed; your account name, trade partners and chat are not."
+          hint="Allows third-parties to react to game status, inventory changes, relic rewards, trades and alerts. Personal account information is excluded."
         >
-          Stream events to other programs
+          Stream events for other programs on this PC
         </SwitchRow>
         <Field id="event-feed-port" label="Port" inline>
           <Input
