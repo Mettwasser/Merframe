@@ -1,10 +1,11 @@
 use std::{fs, path::Path};
 
+use merframe_lib::event_feed::FeedEvent;
 use schemars::schema_for;
 
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let schema = schema_for!(wf_event_feed_types::FeedEvent);
+    let schema = schema_for!(FeedEvent);
     let json = serde_json::to_string_pretty(&schema)?;
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));

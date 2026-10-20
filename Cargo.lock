@@ -2576,7 +2576,6 @@ dependencies = [
  "ts-rs",
  "wf-core",
  "wf-data",
- "wf-event-feed-types",
  "wf-inventory",
  "wf-log",
  "wf-market",
@@ -5885,18 +5884,6 @@ dependencies = [
  "tokio",
  "tracing",
  "ts-rs",
-]
-
-[[package]]
-name = "wf-event-feed-types"
-version = "0.6.0"
-dependencies = [
- "chrono",
- "schemars 1.2.3",
- "serde",
- "serde_json",
- "ts-rs",
- "wf-core",
 ]
 
 [[package]]

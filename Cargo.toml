@@ -55,7 +55,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 schemars = { version = "1", features = ["chrono04"] }
 wf-mem = { path = "crates/wf-mem" }
 wf-scan = { path = "crates/wf-scan" }
-wf-event-feed-types = { path = "crates/wf-event-feed-types" }
 wf-inventory = { path = "crates/wf-inventory" }
 wf-log = { path = "crates/wf-log" }
 wf-data = { path = "crates/wf-data" }

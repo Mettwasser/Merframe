@@ -44,7 +44,6 @@ wf-market = { workspace = true, features = ["fetch"] }
 wf-mem = { workspace = true }
 wf-scan = { workspace = true }
 wf-worldstate = { workspace = true, features = ["fetch"] }
-wf-event-feed-types = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gdk = { workspace = true }
@@ -55,8 +54,13 @@ notify-rust = { workspace = true }
 windows-sys = { workspace = true }
 
 [features]
-bindings = ["dep:ts-rs", "wf-core/bindings", "wf-data/bindings", "wf-market/bindings", "wf-worldstate/bindings", "wf-event-feed-types/bindings"]
+bindings = ["dep:ts-rs", "wf-core/bindings", "wf-data/bindings", "wf-market/bindings", "wf-worldstate/bindings"]
 schema = ["dep:schemars", "wf-core/schema"]
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "generate-sse-spec"
+path = "src/bin/generate-sse-spec.rs"
+required-features = ["schema"]

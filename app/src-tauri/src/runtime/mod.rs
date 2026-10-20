@@ -14,6 +14,7 @@ use crate::event_feed::{self, EventFeed};
 use crate::market::{MarketSnapshot, Presence};
 use crate::notice::Notice;
 use crate::overlay::{self, OverlayState};
+pub use crate::runtime::market_loop::MarketAutoClose;
 use crate::settings::Settings;
 use crate::state::{AppState, GameStatus, InventorySource, lock, read, write};
 
@@ -28,7 +29,6 @@ use market_loop::{auto_close, last_trade_done, market_presence_task, market_task
 
 pub(crate) use attach::{Attached, open_game, reattach};
 pub use game::acquire;
-pub use market_loop::MarketAutoClose;
 pub(crate) use market_loop::trade_side;
 
 #[derive(Clone, Serialize)]
