@@ -4,11 +4,15 @@ import type { OverlayState } from "@/types";
 const IDLE: OverlayState = {
   seq: 0,
   opacity: 100,
+  text_size: "small",
+  motion: "system",
+  ducatering_clipboard: true,
   reward: null,
   recommendation: null,
   riven: null,
   ducatering: null,
   notification: null,
+  preview: null,
 };
 
 interface OverlayStore {

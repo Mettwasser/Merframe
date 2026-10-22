@@ -10,6 +10,7 @@ import {
   RewardSlot,
   RivenSlot,
 } from "@/components/overlay-slots";
+import { useDisplayPreferences } from "@/hooks/use-display-preferences";
 import { useOverlayFeed } from "@/hooks/use-overlay-feed";
 import { api, logError } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,7 @@ function OverlayFrame({
 
 export function OverlayWindow() {
   const overlays = useOverlayFeed();
+  useDisplayPreferences(overlays);
 
   useEffect(() => {
     document.documentElement.classList.add(OVERLAY_CLASS);
@@ -121,7 +123,11 @@ export function OverlayWindow() {
           element={
             overlays.ducatering && (
               <OverlayFrame opacity={overlays.opacity}>
-                <DucateringSlot trigger={overlays.ducatering} compact />
+                <DucateringSlot
+                  trigger={overlays.ducatering}
+                  clipboard={overlays.ducatering_clipboard}
+                  compact
+                />
               </OverlayFrame>
             )
           }

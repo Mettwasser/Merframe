@@ -73,6 +73,40 @@ pub enum ToastPosition {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
+pub enum TextSize {
+    #[default]
+    Small,
+    Medium,
+    Large,
+}
+
+impl TextSize {
+    pub fn root_px(self) -> u8 {
+        match self {
+            Self::Small => 16,
+            Self::Medium => 18,
+            Self::Large => 20,
+        }
+    }
+
+    pub fn factor(self) -> f64 {
+        f64::from(self.root_px()) / 16.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
+#[serde(rename_all = "snake_case")]
+pub enum Motion {
+    #[default]
+    System,
+    Reduced,
+    Full,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bindings", derive(ts_rs::TS), ts(export))]
+#[serde(rename_all = "snake_case")]
 pub enum RecommendationRefinement {
     #[default]
     Radiant,
@@ -101,6 +135,8 @@ pub struct Settings {
     pub check_for_updates: bool,
     pub force_log_file: bool,
     pub log_file_path: Option<PathBuf>,
+    pub text_size: TextSize,
+    pub motion: Motion,
     #[serde(flatten)]
     pub event_feed: EventFeedSettings,
 }
@@ -239,6 +275,7 @@ pub struct OverlaySettings {
 pub struct DucateringSettings {
     pub overlay_ducatering: bool,
     pub overlay_ducatering_placement: OverlayPlacement,
+    pub ducatering_clipboard: bool,
     pub ducatering_most_ducats_first: bool,
     pub ducatering_max_plat: u32,
     pub ducatering_hidden: Vec<DucateringHidden>,
@@ -278,6 +315,8 @@ impl Default for Settings {
             check_for_updates: true,
             force_log_file: false,
             log_file_path: None,
+            text_size: TextSize::default(),
+            motion: Motion::default(),
             event_feed: EventFeedSettings::default(),
         }
     }
@@ -375,6 +414,7 @@ impl Default for DucateringSettings {
         Self {
             overlay_ducatering: true,
             overlay_ducatering_placement: OverlayPlacement::TopRight,
+            ducatering_clipboard: true,
             ducatering_most_ducats_first: true,
             ducatering_max_plat: 10,
             ducatering_hidden: Vec::new(),
@@ -637,6 +677,7 @@ mod tests {
             settings.overlays.ducatering.overlay_ducatering_placement,
             OverlayPlacement::TopRight
         );
+        assert!(settings.overlays.ducatering.ducatering_clipboard);
         assert!(settings.overlays.ducatering.ducatering_most_ducats_first);
         assert_eq!(settings.overlays.ducatering.ducatering_max_plat, 10);
         assert!(settings.overlays.ducatering.ducatering_hidden.is_empty());
@@ -661,6 +702,8 @@ mod tests {
             RecommendationRefinement::Radiant
         );
         assert_eq!(settings.overlays.overlay_opacity, 100);
+        assert_eq!(settings.text_size, TextSize::Small);
+        assert_eq!(settings.motion, Motion::System);
         assert_eq!(settings.overlays.overlay_recommendation_count, 6);
         assert_eq!(settings.overlays.overlay_mode, OverlayMode::Auto);
         assert!(settings.overlays.overlay_only_while_game_active);
@@ -1039,6 +1082,27 @@ mod tests {
 
         let saved = serde_json::to_string(&stored).unwrap();
         assert!(!saved.contains("hide_founders_items"));
+    }
+
+    #[test]
+    fn stylesheet_sets_the_same_root_sizes() {
+        let css = include_str!("../../src/globals.css");
+        for (size, name) in [
+            (TextSize::Small, "small"),
+            (TextSize::Medium, "medium"),
+            (TextSize::Large, "large"),
+        ] {
+            let rule = format!(
+                "html[data-text-size=\"{name}\"] {{\n    font-size: {}px;",
+                size.root_px()
+            );
+            assert!(css.contains(&rule), "{rule}");
+        }
+        let fallback = format!(
+            "html {{\n    font-size: {}px;",
+            TextSize::default().root_px()
+        );
+        assert!(css.contains(&fallback), "{fallback}");
     }
 
     #[test]

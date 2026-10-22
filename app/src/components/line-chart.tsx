@@ -14,6 +14,7 @@ import {
 import { ChartHeader, readingsTooltip } from "@/components/chart-hover";
 import {
   AXIS_TICK,
+  BAR_CURSOR,
   COMPACT,
   changeColor,
   changeTone,
@@ -77,10 +78,11 @@ export function LineChart({
         <ResponsiveContainer>
           <Chart data={points} syncId={label} margin={MARGIN}>
             <CartesianGrid vertical={false} {...GRID} />
-            <XAxis dataKey="label" hide />
+            <XAxis dataKey="label" scale="band" hide />
             <YAxis
               width={AXIS_WIDTH}
               domain={["dataMin", "dataMax"]}
+              padding={{ top: 4, bottom: 4 }}
               tickCount={2}
               tick={AXIS_TICK}
               tickFormatter={(value: number) => COMPACT.format(value)}
@@ -141,7 +143,7 @@ export function LineChart({
               axisLine={false}
             />
             <ReferenceLine y={0} stroke="currentColor" strokeOpacity={0.2} />
-            <Tooltip cursor={LINE_CURSOR} content={() => null} />
+            <Tooltip cursor={BAR_CURSOR} content={() => null} />
             <Bar dataKey="change" maxBarSize={8} isAnimationActive={false}>
               {points.map((point) => (
                 <Cell key={point.key} fill={changeColor(point.change ?? 0)} />
